@@ -16,12 +16,12 @@ interface RankingBarChartProps {
 }
 
 const COLORS = [
-  "oklch(0.75 0.15 85)",
-  "oklch(0.50 0.15 255)",
-  "oklch(0.60 0.15 175)",
-  "oklch(0.55 0.20 25)",
-  "oklch(0.65 0.12 320)",
-  "oklch(0.70 0.10 140)",
+  "#22d3ee",
+  "#84cc16",
+  "#a78bfa",
+  "#f59e0b",
+  "#f43f5e",
+  "#06b6d4",
 ]
 
 export function RankingBarChart({ data }: RankingBarChartProps) {
@@ -30,23 +30,27 @@ export function RankingBarChart({ data }: RankingBarChartProps) {
   return (
     <ResponsiveContainer width="100%" height={300}>
       <BarChart data={sorted} layout="vertical" margin={{ left: 20, right: 20 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.90 0.01 240)" />
-        <XAxis type="number" tick={{ fill: "oklch(0.50 0.02 255)", fontSize: 12 }} />
+        <CartesianGrid strokeDasharray="3 3" stroke="#312e81" strokeOpacity={0.4} />
+        <XAxis type="number" tick={{ fill: "#94a3b8", fontSize: 12 }} axisLine={{ stroke: "#312e81" }} />
         <YAxis
           dataKey="name"
           type="category"
-          tick={{ fill: "oklch(0.50 0.02 255)", fontSize: 12 }}
+          tick={{ fill: "#c7d2fe", fontSize: 12, fontWeight: 500 }}
           width={120}
+          axisLine={{ stroke: "#312e81" }}
         />
         <Tooltip
           contentStyle={{
-            backgroundColor: "oklch(1 0 0)",
-            border: "1px solid oklch(0.90 0.01 240)",
-            borderRadius: "8px",
+            backgroundColor: "#1e1b4b",
+            border: "1px solid #312e81",
+            borderRadius: "10px",
             fontSize: "13px",
+            color: "#e2e8f0",
+            boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
           }}
+          labelStyle={{ color: "#c7d2fe", fontWeight: 600 }}
         />
-        <Bar dataKey="moyenne" radius={[0, 4, 4, 0]} barSize={28}>
+        <Bar dataKey="moyenne" radius={[0, 6, 6, 0]} barSize={28}>
           {sorted.map((_, index) => (
             <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
           ))}

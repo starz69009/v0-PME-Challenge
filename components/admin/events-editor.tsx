@@ -44,17 +44,17 @@ export function EventsEditor({ events }: { events: EventWithOptions[] }) {
         const isOpen = openEvents.has(event.id)
         return (
           <Collapsible key={event.id} open={isOpen} onOpenChange={() => toggleEvent(event.id)}>
-            <Card className="overflow-hidden">
+            <Card className="overflow-hidden border-border/40 bg-card/60 backdrop-blur-sm">
               <CollapsibleTrigger asChild>
-                <CardHeader className="cursor-pointer transition-colors hover:bg-muted/50">
+                <CardHeader className="cursor-pointer transition-colors hover:bg-muted/30">
                   <div className="flex items-center gap-3">
-                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-muted-foreground">
                       {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                     </Button>
-                    <Badge variant="outline" className="font-mono text-xs">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-xs font-bold text-primary font-mono">
                       {event.sort_order}
-                    </Badge>
-                    <CardTitle className="flex-1 text-base">{event.title}</CardTitle>
+                    </span>
+                    <CardTitle className="flex-1 text-base text-foreground">{event.title}</CardTitle>
                     {event.category && <CategoryBadge category={event.category as EventCategory} />}
                   </div>
                 </CardHeader>
@@ -63,58 +63,60 @@ export function EventsEditor({ events }: { events: EventWithOptions[] }) {
                 <CardContent className="pt-0">
                   <p className="mb-4 text-sm leading-relaxed text-muted-foreground">{event.description}</p>
 
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-[200px]">Option</TableHead>
-                        {SCORE_FIELDS.map((f) => (
-                          <TableHead key={f.key} className="text-center text-xs">
-                            {f.label}
-                          </TableHead>
-                        ))}
-                        <TableHead className="text-center text-xs font-bold">Moy.</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {event.event_options
-                        .sort((a, b) => a.sort_order - b.sort_order)
-                        .map((option) => (
-                          <TableRow key={option.id}>
-                            <TableCell>
-                              <div>
-                                <p className="text-sm font-medium text-foreground">{option.label}</p>
-                                {option.description && (
-                                  <p className="text-xs text-muted-foreground">{option.description}</p>
-                                )}
-                              </div>
-                            </TableCell>
-                            {SCORE_FIELDS.map((f) => {
-                              const val = option[f.key as keyof typeof option] as number
-                              return (
-                                <TableCell key={f.key} className="text-center">
-                                  <span
-                                    className={`text-sm font-mono ${
-                                      val > 0 ? "text-success" : val < 0 ? "text-destructive" : "text-muted-foreground"
-                                    }`}
-                                  >
-                                    {val > 0 ? "+" : ""}{val}
-                                  </span>
-                                </TableCell>
-                              )
-                            })}
-                            <TableCell className="text-center">
-                              <span
-                                className={`text-sm font-bold font-mono ${
-                                  option.points_moyenne > 0 ? "text-success" : option.points_moyenne < 0 ? "text-destructive" : "text-muted-foreground"
-                                }`}
-                              >
-                                {option.points_moyenne > 0 ? "+" : ""}{Number(option.points_moyenne).toFixed(2)}
-                              </span>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                    </TableBody>
-                  </Table>
+                  <div className="rounded-lg border border-border/30 overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="border-border/20 hover:bg-transparent">
+                          <TableHead className="w-[200px] text-muted-foreground">Option</TableHead>
+                          {SCORE_FIELDS.map((f) => (
+                            <TableHead key={f.key} className="text-center text-xs text-muted-foreground">
+                              {f.label}
+                            </TableHead>
+                          ))}
+                          <TableHead className="text-center text-xs font-bold text-primary">Moy.</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {event.event_options
+                          .sort((a, b) => a.sort_order - b.sort_order)
+                          .map((option) => (
+                            <TableRow key={option.id} className="border-border/15 hover:bg-muted/20">
+                              <TableCell>
+                                <div>
+                                  <p className="text-sm font-medium text-foreground">{option.label}</p>
+                                  {option.description && (
+                                    <p className="text-xs text-muted-foreground/70">{option.description}</p>
+                                  )}
+                                </div>
+                              </TableCell>
+                              {SCORE_FIELDS.map((f) => {
+                                const val = option[f.key as keyof typeof option] as number
+                                return (
+                                  <TableCell key={f.key} className="text-center">
+                                    <span
+                                      className={`text-sm font-mono font-medium ${
+                                        val > 0 ? "text-[#22d3ee]" : val < 0 ? "text-[#f43f5e]" : "text-muted-foreground/50"
+                                      }`}
+                                    >
+                                      {val > 0 ? "+" : ""}{val}
+                                    </span>
+                                  </TableCell>
+                                )
+                              })}
+                              <TableCell className="text-center">
+                                <span
+                                  className={`text-sm font-bold font-mono ${
+                                    option.points_moyenne > 0 ? "text-[#22d3ee]" : option.points_moyenne < 0 ? "text-[#f43f5e]" : "text-muted-foreground/50"
+                                  }`}
+                                >
+                                  {option.points_moyenne > 0 ? "+" : ""}{Number(option.points_moyenne).toFixed(1)}
+                                </span>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </CardContent>
               </CollapsibleContent>
             </Card>

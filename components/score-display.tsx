@@ -1,6 +1,5 @@
 "use client"
 
-import { Card, CardContent } from "@/components/ui/card"
 import { SCORE_FIELDS } from "@/lib/constants"
 import type { TeamScore } from "@/lib/types"
 
@@ -12,50 +11,44 @@ interface ScoreDisplayProps {
 export function ScoreDisplay({ score, compact = false }: ScoreDisplayProps) {
   const fields = SCORE_FIELDS
 
-  if (!score) {
-    return (
-      <div className={`grid ${compact ? "grid-cols-3 gap-2" : "grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6"}`}>
-        {fields.map((f) => (
-          <Card key={f.key} className="border-border/50">
-            <CardContent className={compact ? "p-2" : "p-3"}>
-              <p className="text-xs text-muted-foreground">{f.label}</p>
-              <p className="text-lg font-bold text-foreground" style={{ color: f.color }}>0</p>
-            </CardContent>
-          </Card>
-        ))}
-        <Card className="border-border/50">
-          <CardContent className={compact ? "p-2" : "p-3"}>
-            <p className="text-xs text-muted-foreground">Moyenne</p>
-            <p className="text-lg font-bold text-foreground">0.00</p>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
+  const moyenne = score ? Number(score.points_moyenne).toFixed(2) : "0.00"
 
   return (
     <div className={`grid ${compact ? "grid-cols-3 gap-2" : "grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6"}`}>
       {fields.map((f) => {
-        const value = score[f.key as keyof TeamScore] as number
+        const value = score ? (score[f.key as keyof TeamScore] as number) : 0
         return (
-          <Card key={f.key} className="border-border/50">
-            <CardContent className={compact ? "p-2" : "p-3"}>
-              <p className="text-xs text-muted-foreground">{f.label}</p>
-              <p className="text-lg font-bold" style={{ color: f.color }}>
+          <div
+            key={f.key}
+            className="group relative overflow-hidden rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm transition-all hover:border-border"
+          >
+            <div className={compact ? "p-2.5" : "p-3.5"}>
+              <div className="flex items-center gap-1.5 mb-1">
+                <div className="h-2 w-2 rounded-full" style={{ backgroundColor: f.color }} />
+                <p className="text-xs font-medium text-muted-foreground">{f.label}</p>
+              </div>
+              <p className="text-xl font-bold tracking-tight" style={{ color: f.color }}>
                 {value > 0 ? "+" : ""}{value}
               </p>
-            </CardContent>
-          </Card>
+            </div>
+            {/* Glow line at bottom */}
+            <div
+              className="absolute bottom-0 left-0 right-0 h-0.5 opacity-40"
+              style={{ backgroundColor: f.color }}
+            />
+          </div>
         )
       })}
-      <Card className="border-border/50">
-        <CardContent className={compact ? "p-2" : "p-3"}>
-          <p className="text-xs text-muted-foreground">Moyenne</p>
-          <p className="text-lg font-bold text-foreground">
-            {Number(score.points_moyenne).toFixed(2)}
+      {/* Moyenne card - special styling */}
+      <div className="relative overflow-hidden rounded-xl border border-primary/30 bg-primary/5 backdrop-blur-sm">
+        <div className={compact ? "p-2.5" : "p-3.5"}>
+          <p className="text-xs font-medium text-muted-foreground mb-1">Moyenne</p>
+          <p className="text-xl font-bold tracking-tight text-primary">
+            {moyenne}
           </p>
-        </CardContent>
-      </Card>
+        </div>
+        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary opacity-50" />
+      </div>
     </div>
   )
 }

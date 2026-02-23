@@ -10,10 +10,16 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Plus, Play, Eye, Trash2 } from "lucide-react"
+import { Plus, Play, Eye, Trash2, Zap } from "lucide-react"
 import { SESSION_STATUS_LABELS } from "@/lib/constants"
 import { toast } from "sonner"
 import type { GameSession, GameEvent, Team, SessionStatus } from "@/lib/types"
+
+const STATUS_STYLES: Record<string, string> = {
+  setup: "border-muted-foreground/30 bg-muted-foreground/10 text-muted-foreground",
+  active: "border-[#22d3ee]/40 bg-[#22d3ee]/10 text-[#22d3ee]",
+  completed: "border-[#84cc16]/40 bg-[#84cc16]/10 text-[#84cc16]",
+}
 
 export function SessionsManager({
   initialSessions,
@@ -47,7 +53,6 @@ export function SessionsManager({
       return
     }
 
-    // Create session_events for all active events
     const sessionEvents = events
       .filter((e) => e.is_active)
       .map((e) => ({
@@ -92,18 +97,19 @@ export function SessionsManager({
               Nouvelle session
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="border-border/40 bg-card">
             <DialogHeader>
-              <DialogTitle>Creer une session</DialogTitle>
+              <DialogTitle className="text-foreground">Creer une session</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 pt-4">
               <div className="space-y-2">
-                <Label htmlFor="session-name">Nom de la session</Label>
+                <Label htmlFor="session-name" className="text-muted-foreground">Nom de la session</Label>
                 <Input
                   id="session-name"
                   value={sessionName}
                   onChange={(e) => setSessionName(e.target.value)}
                   placeholder="Ex: Session Janvier 2026"
+                  className="bg-secondary/50 border-border/40"
                 />
               </div>
               <p className="text-sm text-muted-foreground">
@@ -119,23 +125,26 @@ export function SessionsManager({
       </div>
 
       {initialSessions.length === 0 ? (
-        <Card className="border-dashed">
-          <CardContent className="flex flex-col items-center justify-center p-12 text-center">
-            <Play className="mb-4 h-12 w-12 text-muted-foreground/40" />
+        <Card className="border-dashed border-border/30 bg-card/40">
+          <CardContent className="flex flex-col items-center justify-center p-16 text-center">
+            <div className="mb-4 rounded-2xl bg-muted/30 p-4">
+              <Zap className="h-10 w-10 text-muted-foreground/40" />
+            </div>
             <h3 className="text-lg font-semibold text-foreground">Aucune session</h3>
-            <p className="mt-1 text-sm text-muted-foreground">Creez votre premiere session pour lancer le jeu.</p>
+            <p className="mt-2 max-w-sm text-sm text-muted-foreground">Creez votre premiere session pour lancer le jeu.</p>
           </CardContent>
         </Card>
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
           {initialSessions.map((session) => (
-            <Card key={session.id} className="overflow-hidden">
+            <Card key={session.id} className="relative overflow-hidden border-border/40 bg-card/60 backdrop-blur-sm">
+              <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-base">{session.name}</CardTitle>
+                  <CardTitle className="text-base text-foreground">{session.name}</CardTitle>
                   <Badge
-                    variant={session.status === "active" ? "default" : "secondary"}
-                    className={session.status === "active" ? "bg-success text-success-foreground" : ""}
+                    variant="outline"
+                    className={STATUS_STYLES[session.status as string] || STATUS_STYLES.setup}
                   >
                     {SESSION_STATUS_LABELS[session.status as SessionStatus]}
                   </Badge>
@@ -145,7 +154,7 @@ export function SessionsManager({
                 </p>
               </CardHeader>
               <CardContent className="flex items-center gap-2 pt-0">
-                <Button asChild variant="outline" size="sm">
+                <Button asChild variant="outline" size="sm" className="border-border/40">
                   <Link href={`/admin/sessions/${session.id}`}>
                     <Eye className="mr-1 h-3 w-3" />
                     Details
@@ -158,7 +167,7 @@ export function SessionsManager({
                   </Button>
                 )}
                 {session.status === "setup" && (
-                  <Button variant="ghost" size="sm" className="text-destructive" onClick={() => deleteSession(session.id)}>
+                  <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => deleteSession(session.id)}>
                     <Trash2 className="h-3 w-3" />
                   </Button>
                 )}

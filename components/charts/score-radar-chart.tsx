@@ -11,12 +11,12 @@ import {
 } from "recharts"
 
 const TEAM_COLORS = [
-  "oklch(0.50 0.15 255)",
-  "oklch(0.60 0.15 175)",
-  "oklch(0.75 0.15 85)",
-  "oklch(0.55 0.20 25)",
-  "oklch(0.65 0.12 320)",
-  "oklch(0.70 0.10 140)",
+  "#22d3ee",
+  "#84cc16",
+  "#a78bfa",
+  "#f59e0b",
+  "#f43f5e",
+  "#06b6d4",
 ]
 
 interface SingleScoreData {
@@ -44,7 +44,6 @@ export function ScoreRadarChart(props: ScoreRadarChartProps) {
   const { size = "md" } = props
   const heights = { sm: 200, md: 300, lg: 400 }
 
-  // Multi-team radar
   if (props.data) {
     const categories = ["Social", "Commercial", "Tresorerie", "Production", "Reglement."]
     const keys = ["social", "commercial", "tresorerie", "production", "reglementaire"] as const
@@ -59,9 +58,9 @@ export function ScoreRadarChart(props: ScoreRadarChartProps) {
     return (
       <ResponsiveContainer width="100%" height={heights[size]}>
         <RadarChart cx="50%" cy="50%" outerRadius="75%" data={chartData}>
-          <PolarGrid stroke="oklch(0.90 0.01 240)" />
-          <PolarAngleAxis dataKey="category" tick={{ fill: "oklch(0.50 0.02 255)", fontSize: 12 }} />
-          <PolarRadiusAxis angle={90} domain={[-50, 100]} tick={{ fill: "oklch(0.50 0.02 255)", fontSize: 10 }} />
+          <PolarGrid stroke="#312e81" strokeOpacity={0.6} />
+          <PolarAngleAxis dataKey="category" tick={{ fill: "#94a3b8", fontSize: 12, fontWeight: 500 }} />
+          <PolarRadiusAxis angle={90} domain={[-50, 100]} tick={{ fill: "#64748b", fontSize: 10 }} axisLine={false} />
           {props.data.map((team, idx) => (
             <Radar
               key={team.teamName}
@@ -69,17 +68,16 @@ export function ScoreRadarChart(props: ScoreRadarChartProps) {
               dataKey={team.teamName}
               stroke={TEAM_COLORS[idx % TEAM_COLORS.length]}
               fill={TEAM_COLORS[idx % TEAM_COLORS.length]}
-              fillOpacity={0.15}
+              fillOpacity={0.12}
               strokeWidth={2}
             />
           ))}
-          <Legend />
+          <Legend wrapperStyle={{ color: "#94a3b8", fontSize: 12 }} />
         </RadarChart>
       </ResponsiveContainer>
     )
   }
 
-  // Single team radar
   const { scores } = props
   const data = [
     { category: "Social", value: scores.social, fullMark: 100 },
@@ -92,16 +90,16 @@ export function ScoreRadarChart(props: ScoreRadarChartProps) {
   return (
     <ResponsiveContainer width="100%" height={heights[size]}>
       <RadarChart cx="50%" cy="50%" outerRadius="75%" data={data}>
-        <PolarGrid stroke="oklch(0.90 0.01 240)" />
-        <PolarAngleAxis dataKey="category" tick={{ fill: "oklch(0.50 0.02 255)", fontSize: 12 }} />
-        <PolarRadiusAxis angle={90} domain={[-50, 100]} tick={{ fill: "oklch(0.50 0.02 255)", fontSize: 10 }} />
+        <PolarGrid stroke="#312e81" strokeOpacity={0.6} />
+        <PolarAngleAxis dataKey="category" tick={{ fill: "#94a3b8", fontSize: 12, fontWeight: 500 }} />
+        <PolarRadiusAxis angle={90} domain={[-50, 100]} tick={{ fill: "#64748b", fontSize: 10 }} axisLine={false} />
         <Radar
           name="Score"
           dataKey="value"
-          stroke="oklch(0.35 0.08 255)"
-          fill="oklch(0.50 0.15 255)"
-          fillOpacity={0.3}
-          strokeWidth={2}
+          stroke="#22d3ee"
+          fill="#22d3ee"
+          fillOpacity={0.2}
+          strokeWidth={2.5}
         />
       </RadarChart>
     </ResponsiveContainer>
