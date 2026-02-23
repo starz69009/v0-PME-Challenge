@@ -17,7 +17,7 @@ export async function login(formData: FormData) {
     return { error: error.message }
   }
 
-  // Check user role and redirect accordingly
+  // Check user role and return redirect path
   const { data: { user } } = await supabase.auth.getUser()
   if (user) {
     const { data: profile } = await supabase
@@ -27,13 +27,13 @@ export async function login(formData: FormData) {
       .single()
 
     if (profile?.role === 'admin') {
-      redirect('/admin')
+      return { redirectTo: '/admin' }
     } else {
-      redirect('/equipe')
+      return { redirectTo: '/equipe' }
     }
   }
 
-  redirect('/')
+  return { redirectTo: '/' }
 }
 
 export async function signup(formData: FormData) {
