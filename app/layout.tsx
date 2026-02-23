@@ -1,10 +1,10 @@
 import type { Metadata, Viewport } from 'next'
-import { Inter, JetBrains_Mono } from 'next/font/google'
+import { Space_Grotesk, JetBrains_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { Toaster } from 'sonner'
 import './globals.css'
 
-const _inter = Inter({ subsets: ['latin'] })
+const _spaceGrotesk = Space_Grotesk({ subsets: ['latin'] })
 const _jetbrainsMono = JetBrains_Mono({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
@@ -12,11 +12,11 @@ export const metadata: Metadata = {
     default: 'PME Challenge',
     template: '%s | PME Challenge',
   },
-  description: 'Jeu serieux de gestion d\'entreprise - Simulez la direction d\'une PME et prenez des decisions strategiques.',
+  description: 'Le jeu de simulation de gestion pour les futurs dirigeants. Pilotez votre PME a travers 12 defis strategiques.',
 }
 
 export const viewport: Viewport = {
-  themeColor: '#1e3a5f',
+  themeColor: '#0c0a20',
   width: 'device-width',
   initialScale: 1,
 }

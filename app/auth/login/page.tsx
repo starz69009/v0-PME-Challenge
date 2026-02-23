@@ -3,11 +3,11 @@
 import { useState } from 'react'
 import { login } from '@/app/auth/actions'
 import Link from 'next/link'
-import { Building2, Loader2 } from 'lucide-react'
+import { Zap, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
 
 export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
@@ -24,32 +24,36 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="flex w-full max-w-md flex-col items-center gap-8">
-        <div className="flex flex-col items-center gap-2">
-          <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary">
-              <Building2 className="h-7 w-7 text-primary-foreground" />
-            </div>
-            <h1 className="text-3xl font-bold tracking-tight text-foreground">PME Challenge</h1>
-          </div>
-          <p className="text-muted-foreground">Jeu serieux de gestion d{"'"}entreprise</p>
-        </div>
+    <div className="relative flex min-h-screen items-center justify-center bg-background px-4">
+      {/* Background effects */}
+      <div className="pointer-events-none fixed inset-0 bg-dot-grid opacity-30" />
+      <div className="pointer-events-none fixed left-1/2 top-1/4 h-[500px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/8 blur-[120px]" />
 
-        <Card className="w-full">
-          <CardHeader>
-            <CardTitle className="text-xl">Connexion</CardTitle>
-            <CardDescription>Entrez vos identifiants pour acceder a votre espace</CardDescription>
+      <div className="relative z-10 flex w-full max-w-md flex-col items-center gap-8">
+        {/* Brand */}
+        <Link href="/" className="flex items-center gap-2.5 transition-opacity hover:opacity-80">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/15">
+            <Zap className="h-5 w-5 text-primary" />
+          </div>
+          <span className="text-2xl font-bold tracking-tight text-foreground">PME Challenge</span>
+        </Link>
+
+        <Card className="w-full border-border/40 bg-card/60 backdrop-blur-sm">
+          <CardHeader className="pb-4 text-center">
+            <h1 className="text-xl font-bold text-foreground">Connexion</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Entrez vos identifiants pour acceder a votre espace
+            </p>
           </CardHeader>
           <CardContent>
             <form action={handleSubmit} className="flex flex-col gap-4">
               {error && (
-                <div className="rounded-lg bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
                   {error}
                 </div>
               )}
               <div className="flex flex-col gap-2">
-                <Label htmlFor="email">Adresse email</Label>
+                <Label htmlFor="email" className="text-sm text-foreground/80">Adresse email</Label>
                 <Input
                   id="email"
                   name="email"
@@ -57,10 +61,11 @@ export default function LoginPage() {
                   placeholder="vous@exemple.fr"
                   required
                   autoComplete="email"
+                  className="border-border/60 bg-background/50"
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <Label htmlFor="password">Mot de passe</Label>
+                <Label htmlFor="password" className="text-sm text-foreground/80">Mot de passe</Label>
                 <Input
                   id="password"
                   name="password"
@@ -68,9 +73,10 @@ export default function LoginPage() {
                   placeholder="Votre mot de passe"
                   required
                   autoComplete="current-password"
+                  className="border-border/60 bg-background/50"
                 />
               </div>
-              <Button type="submit" className="w-full" disabled={loading}>
+              <Button type="submit" className="mt-2 w-full glow-primary" disabled={loading}>
                 {loading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -82,7 +88,7 @@ export default function LoginPage() {
               </Button>
             </form>
           </CardContent>
-          <CardFooter className="flex justify-center">
+          <CardFooter className="justify-center border-t border-border/40 pt-4">
             <p className="text-sm text-muted-foreground">
               Pas encore de compte ?{' '}
               <Link href="/auth/sign-up" className="font-medium text-primary underline-offset-4 hover:underline">

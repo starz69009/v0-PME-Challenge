@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ScoreDisplay } from "@/components/score-display"
 import { ScoreRadarChart } from "@/components/charts/score-radar-chart"
-import { Users, Zap } from "lucide-react"
+import { Users, Zap, ArrowRight } from "lucide-react"
 import { COMPANY_ROLE_LABELS } from "@/lib/constants"
 import type { CompanyRole } from "@/lib/types"
 import Link from "next/link"
@@ -15,7 +15,6 @@ export default async function TeamDashboard() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/auth/login")
 
-  // Get team
   const { data: membership } = await supabase
     .from("team_members")
     .select("*, teams(*)")
@@ -26,13 +25,11 @@ export default async function TeamDashboard() {
 
   const team = membership.teams
 
-  // Get team members
   const { data: members } = await supabase
     .from("team_members")
     .select("*, profiles(*)")
     .eq("team_id", team.id)
 
-  // Get active session and latest score
   const { data: activeSession } = await supabase
     .from("game_sessions")
     .select("*")
@@ -54,7 +51,6 @@ export default async function TeamDashboard() {
       .single()
     latestScore = score
 
-    // Check for active event
     const { data: se } = await supabase
       .from("session_events")
       .select("*, events(*)")
@@ -69,35 +65,44 @@ export default async function TeamDashboard() {
     <div className="space-y-6">
       {/* Active Event Alert */}
       {activeEvent && (
-        <Card className="border-primary/30 bg-primary/5">
-          <CardContent className="flex items-center justify-between p-4">
+        <div className="gradient-border overflow-hidden rounded-xl">
+          <div className="flex items-center justify-between bg-card/80 p-4 backdrop-blur-sm">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
-                <Zap className="h-5 w-5" />
+              <div className="relative">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/15">
+                  <Zap className="h-5 w-5 text-primary" />
+                </div>
+                <span className="absolute -right-0.5 -top-0.5 flex h-3 w-3">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-75" />
+                  <span className="relative inline-flex h-3 w-3 rounded-full bg-accent" />
+                </span>
               </div>
               <div>
-                <p className="text-sm font-semibold text-foreground">Evenement en cours</p>
+                <p className="text-sm font-bold text-foreground">Evenement en cours</p>
                 <p className="text-sm text-muted-foreground">{activeEvent.events?.title}</p>
               </div>
             </div>
-            <Button asChild size="sm">
-              <Link href="/equipe/evenement">Participer</Link>
+            <Button asChild size="sm" className="glow-primary">
+              <Link href="/equipe/evenement">
+                Participer
+                <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+              </Link>
             </Button>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
 
       {/* Scores */}
       <div>
-        <h2 className="mb-3 text-lg font-semibold text-foreground">Scores actuels</h2>
+        <h2 className="mb-3 text-lg font-bold tracking-tight text-foreground">Scores actuels</h2>
         <ScoreDisplay score={latestScore} />
       </div>
 
       {/* Radar + Team */}
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Radar des competences</CardTitle>
+        <Card className="border-border/40 bg-card/80">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base font-bold">Radar des competences</CardTitle>
           </CardHeader>
           <CardContent>
             <ScoreRadarChart
@@ -112,10 +117,10 @@ export default async function TeamDashboard() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Users className="h-4 w-4" />
+        <Card className="border-border/40 bg-card/80">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base font-bold">
+              <Users className="h-4 w-4 text-primary" />
               Equipe - {team.name}
             </CardTitle>
           </CardHeader>
@@ -123,18 +128,18 @@ export default async function TeamDashboard() {
             {team.slogan && (
               <p className="mb-4 text-sm italic text-muted-foreground">{`"${team.slogan}"`}</p>
             )}
-            <div className="space-y-3">
+            <div className="space-y-2">
               {(members || []).map((m: any) => (
-                <div key={m.id} className="flex items-center justify-between rounded-lg border border-border p-3">
+                <div key={m.id} className="flex items-center justify-between rounded-lg border border-border/40 bg-background/50 p-3 transition-colors">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/15 text-xs font-bold text-primary">
                       {m.profiles?.display_name?.[0]?.toUpperCase() || "?"}
                     </div>
                     <span className="text-sm font-medium text-foreground">
-                      {m.profiles?.display_name || m.profiles?.email || "—"}
+                      {m.profiles?.display_name || m.profiles?.email || "-"}
                     </span>
                   </div>
-                  <Badge variant="outline" className="text-xs">
+                  <Badge variant="outline" className="border-border/60 bg-muted/50 text-xs text-muted-foreground">
                     {COMPANY_ROLE_LABELS[m.role_in_company as CompanyRole]}
                   </Badge>
                 </div>

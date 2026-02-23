@@ -9,11 +9,11 @@ export const CATEGORY_LABELS: Record<EventCategory, string> = {
 }
 
 export const CATEGORY_COLORS: Record<EventCategory, string> = {
-  social: '#3b82f6',
-  commercial: '#10b981',
-  tresorerie: '#f59e0b',
-  production: '#8b5cf6',
-  reglementaire: '#ef4444',
+  social: '#38bdf8',
+  commercial: '#34d399',
+  tresorerie: '#fbbf24',
+  production: '#c084fc',
+  reglementaire: '#f87171',
 }
 
 export const COMPANY_ROLE_LABELS: Record<CompanyRole, string> = {
@@ -26,11 +26,11 @@ export const COMPANY_ROLE_LABELS: Record<CompanyRole, string> = {
 }
 
 export const SCORE_FIELDS = [
-  { key: 'points_social', label: 'Social', color: '#3b82f6' },
-  { key: 'points_commercial', label: 'Commercial', color: '#10b981' },
-  { key: 'points_tresorerie', label: 'Tresorerie', color: '#f59e0b' },
-  { key: 'points_production', label: 'Production', color: '#8b5cf6' },
-  { key: 'points_reglementaire', label: 'Reglementaire', color: '#ef4444' },
+  { key: 'points_social', label: 'Social', color: '#38bdf8' },
+  { key: 'points_commercial', label: 'Commercial', color: '#34d399' },
+  { key: 'points_tresorerie', label: 'Tresorerie', color: '#fbbf24' },
+  { key: 'points_production', label: 'Production', color: '#c084fc' },
+  { key: 'points_reglementaire', label: 'Reglementaire', color: '#f87171' },
 ] as const
 
 export const SESSION_STATUS_LABELS = {

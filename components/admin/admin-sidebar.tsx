@@ -15,7 +15,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
-import { Building2, LayoutDashboard, Users, Play, CalendarDays, Trophy, LogOut } from "lucide-react"
+import { Zap, LayoutDashboard, Users, Play, CalendarDays, Trophy, LogOut } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import type { Profile } from "@/lib/types"
 
@@ -39,21 +39,21 @@ export function AdminSidebar({ profile }: { profile: Profile }) {
 
   return (
     <Sidebar>
-      <SidebarHeader className="border-b border-sidebar-border px-4 py-4">
+      <SidebarHeader className="border-b border-sidebar-border px-4 py-5">
         <Link href="/admin" className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-            <Building2 className="h-5 w-5" />
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-sidebar-primary/15">
+            <Zap className="h-5 w-5 text-sidebar-primary" />
           </div>
           <div className="flex flex-col">
-            <span className="text-sm font-bold text-sidebar-foreground">PME Challenge</span>
-            <span className="text-xs text-sidebar-foreground/60">Administration</span>
+            <span className="text-sm font-bold tracking-tight text-sidebar-foreground">PME Challenge</span>
+            <span className="text-[11px] font-medium uppercase tracking-wider text-sidebar-foreground/40">Admin</span>
           </div>
         </Link>
       </SidebarHeader>
 
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-[10px] uppercase tracking-widest text-sidebar-foreground/30">Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {navItems.map((item) => {
@@ -78,18 +78,18 @@ export function AdminSidebar({ profile }: { profile: Profile }) {
 
       <SidebarFooter className="border-t border-sidebar-border p-4">
         <div className="mb-3 flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-sidebar-accent text-sm font-semibold text-sidebar-accent-foreground">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/15 text-xs font-bold text-primary">
             {profile.display_name?.[0]?.toUpperCase() || "A"}
           </div>
-          <div className="flex flex-col">
-            <span className="text-sm font-medium text-sidebar-foreground">{profile.display_name || "Admin"}</span>
-            <span className="text-xs text-sidebar-foreground/60">{profile.email}</span>
+          <div className="flex min-w-0 flex-col">
+            <span className="truncate text-sm font-medium text-sidebar-foreground">{profile.display_name || "Admin"}</span>
+            <span className="truncate text-[11px] text-sidebar-foreground/50">{profile.email}</span>
           </div>
         </div>
         <Button
           variant="ghost"
           size="sm"
-          className="w-full justify-start text-sidebar-foreground/70 hover:text-sidebar-foreground"
+          className="w-full justify-start text-sidebar-foreground/50 hover:text-sidebar-foreground"
           onClick={handleSignOut}
         >
           <LogOut className="mr-2 h-4 w-4" />
