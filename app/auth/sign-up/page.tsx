@@ -128,6 +128,24 @@ export default function SignUpPage() {
                   </SelectContent>
                 </Select>
               </div>
+              {role === 'admin' && (
+                <div className="flex flex-col gap-2 rounded-lg border border-primary/20 bg-primary/5 p-3">
+                  <Label htmlFor="adminCode" className="text-sm font-medium text-primary">
+                    Code de creation administrateur
+                  </Label>
+                  <Input
+                    id="adminCode"
+                    name="adminCode"
+                    type="password"
+                    placeholder="Entrez le code fourni"
+                    required
+                    className="border-primary/30 bg-background/50"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Ce code est requis pour creer un compte administrateur.
+                  </p>
+                </div>
+              )}
               <Button type="submit" className="mt-2 w-full glow-primary" disabled={loading}>
                 {loading ? (
                   <>

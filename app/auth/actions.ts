@@ -43,6 +43,14 @@ export async function signup(formData: FormData) {
   const password = formData.get('password') as string
   const displayName = formData.get('displayName') as string
   const role = formData.get('role') as string || 'team_member'
+  const adminCode = formData.get('adminCode') as string
+
+  // Validate admin creation code
+  if (role === 'admin') {
+    if (adminCode !== '260660') {
+      return { error: 'Code administrateur incorrect.' }
+    }
+  }
 
   const { error } = await supabase.auth.signUp({
     email,
