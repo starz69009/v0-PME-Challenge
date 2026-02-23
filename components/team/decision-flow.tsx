@@ -24,7 +24,7 @@ interface Props {
   durationSeconds: number | null
 }
 
-function CountdownTimer({ expiresAt, onExpire }: { expiresAt: string; onExpire: () => void }) {
+function CountdownTimer({ expiresAt, onExpire, durationSeconds }: { expiresAt: string; onExpire: () => void; durationSeconds: number | null }) {
   const [timeLeft, setTimeLeft] = useState(() => {
     return Math.max(0, Math.floor((new Date(expiresAt).getTime() - Date.now()) / 1000))
   })
@@ -45,11 +45,22 @@ function CountdownTimer({ expiresAt, onExpire }: { expiresAt: string; onExpire: 
     return () => clearInterval(interval)
   }, [expiresAt, onExpire, timeLeft])
 
-  const mins = Math.floor(timeLeft / 60)
+  const days = Math.floor(timeLeft / 86400)
+  const hours = Math.floor((timeLeft % 86400) / 3600)
+  const mins = Math.floor((timeLeft % 3600) / 60)
   const secs = timeLeft % 60
 
-  const isUrgent = timeLeft <= 30
-  const isCritical = timeLeft <= 10
+  // Urgency thresholds adapt to duration: 10% remaining = urgent, 3% = critical (minimum 30s/10s)
+  const urgentThreshold = Math.max(30, Math.floor((durationSeconds || 300) * 0.10))
+  const criticalThreshold = Math.max(10, Math.floor((durationSeconds || 300) * 0.03))
+  const isUrgent = timeLeft <= urgentThreshold
+  const isCritical = timeLeft <= criticalThreshold
+
+  function formatCountdown() {
+    if (days > 0) return `${days}j ${hours}h ${mins}min`
+    if (hours > 0) return `${hours}h ${mins.toString().padStart(2, "0")}min ${secs.toString().padStart(2, "0")}s`
+    return `${mins}:${secs.toString().padStart(2, "0")}`
+  }
 
   return (
     <div className={`flex items-center gap-3 rounded-xl border px-5 py-3 font-mono transition-all ${
@@ -65,7 +76,7 @@ function CountdownTimer({ expiresAt, onExpire }: { expiresAt: string; onExpire: 
       <span className={`text-2xl font-bold tabular-nums ${
         isCritical ? "text-destructive" : isUrgent ? "text-warning" : "text-primary"
       }`}>
-        {mins}:{secs.toString().padStart(2, "0")}
+        {formatCountdown()}
       </span>
       {isUrgent && !isCritical && (
         <span className="text-xs font-semibold text-warning">Depechez-vous !</span>
@@ -226,7 +237,7 @@ export function DecisionFlow({
       {/* Countdown Timer */}
       {expiresAt && !expired && status !== "validated" && (
         <div className="flex justify-center">
-          <CountdownTimer expiresAt={expiresAt} onExpire={() => setExpired(true)} />
+          <CountdownTimer expiresAt={expiresAt} onExpire={() => setExpired(true)} durationSeconds={durationSeconds} />
         </div>
       )}
 

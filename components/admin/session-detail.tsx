@@ -68,12 +68,12 @@ interface DecisionWithRelations extends Decision {
 }
 
 const DURATION_PRESETS = [
-  { label: "1 min", value: 60 },
-  { label: "2 min", value: 120 },
-  { label: "3 min", value: 180 },
   { label: "5 min", value: 300 },
-  { label: "10 min", value: 600 },
   { label: "15 min", value: 900 },
+  { label: "30 min", value: 1800 },
+  { label: "1 heure", value: 3600 },
+  { label: "1 jour", value: 86400 },
+  { label: "3 jours", value: 259200 },
 ]
 
 export function SessionDetail({
@@ -91,9 +91,10 @@ export function SessionDetail({
   const [loading, setLoading] = useState(false)
   const [showDurationDialog, setShowDurationDialog] = useState(false)
   const [durationMode, setDurationMode] = useState<"preset" | "custom">("preset")
-  const [selectedPreset, setSelectedPreset] = useState<number>(180)
+  const [selectedPreset, setSelectedPreset] = useState<number>(1800)
+  const [customDays, setCustomDays] = useState("")
+  const [customHours, setCustomHours] = useState("")
   const [customMinutes, setCustomMinutes] = useState("")
-  const [customSeconds, setCustomSeconds] = useState("")
 
   const resolvedCount = sessionEvents.filter((se) => se.status === "resolved").length
   const activeEvent = sessionEvents.find((se) => se.status === "active")
@@ -110,9 +111,10 @@ export function SessionDetail({
 
   function getDurationSeconds(): number {
     if (durationMode === "preset") return selectedPreset
+    const days = parseInt(customDays) || 0
+    const hours = parseInt(customHours) || 0
     const mins = parseInt(customMinutes) || 0
-    const secs = parseInt(customSeconds) || 0
-    return mins * 60 + secs
+    return days * 86400 + hours * 3600 + mins * 60
   }
 
   function openTriggerDialog() {
@@ -125,8 +127,8 @@ export function SessionDetail({
 
   async function triggerWithDuration() {
     const durationSeconds = getDurationSeconds()
-    if (durationSeconds < 10) {
-      toast.error("La duree doit etre d'au moins 10 secondes")
+    if (durationSeconds < 60) {
+      toast.error("La duree doit etre d'au moins 1 minute")
       return
     }
 
@@ -212,7 +214,7 @@ export function SessionDetail({
       await supabase.from("decisions").insert(teamDecisions)
     }
 
-    toast.success(`Evenement declenche - ${Math.floor(durationSeconds / 60)}min ${durationSeconds % 60}s`)
+    toast.success(`Evenement declenche - ${formatDuration(durationSeconds)}`)
     router.refresh()
     setLoading(false)
   }
@@ -247,9 +249,19 @@ export function SessionDetail({
   }
 
   function formatDuration(seconds: number) {
+    if (seconds >= 86400) {
+      const d = Math.floor(seconds / 86400)
+      const h = Math.floor((seconds % 86400) / 3600)
+      return h > 0 ? `${d}j ${h}h` : `${d}j`
+    }
+    if (seconds >= 3600) {
+      const h = Math.floor(seconds / 3600)
+      const m = Math.floor((seconds % 3600) / 60)
+      return m > 0 ? `${h}h ${m}min` : `${h}h`
+    }
     const m = Math.floor(seconds / 60)
     const s = seconds % 60
-    return `${m}:${s.toString().padStart(2, "0")}`
+    return s > 0 ? `${m}min ${s}s` : `${m}min`
   }
 
   return (
@@ -442,30 +454,41 @@ export function SessionDetail({
                 ))}
               </div>
             ) : (
-              <div className="flex items-end gap-3">
+              <div className="flex items-end gap-2">
+                <div className="flex-1 space-y-1.5">
+                  <Label htmlFor="customDays" className="text-xs text-muted-foreground">Jours</Label>
+                  <Input
+                    id="customDays"
+                    type="number"
+                    min="0"
+                    max="30"
+                    placeholder="0"
+                    value={customDays}
+                    onChange={(e) => setCustomDays(e.target.value)}
+                  />
+                </div>
+                <div className="flex-1 space-y-1.5">
+                  <Label htmlFor="customHours" className="text-xs text-muted-foreground">Heures</Label>
+                  <Input
+                    id="customHours"
+                    type="number"
+                    min="0"
+                    max="23"
+                    placeholder="0"
+                    value={customHours}
+                    onChange={(e) => setCustomHours(e.target.value)}
+                  />
+                </div>
                 <div className="flex-1 space-y-1.5">
                   <Label htmlFor="customMin" className="text-xs text-muted-foreground">Minutes</Label>
                   <Input
                     id="customMin"
                     type="number"
                     min="0"
-                    max="60"
+                    max="59"
                     placeholder="0"
                     value={customMinutes}
                     onChange={(e) => setCustomMinutes(e.target.value)}
-                  />
-                </div>
-                <span className="pb-2.5 text-lg font-bold text-muted-foreground">:</span>
-                <div className="flex-1 space-y-1.5">
-                  <Label htmlFor="customSec" className="text-xs text-muted-foreground">Secondes</Label>
-                  <Input
-                    id="customSec"
-                    type="number"
-                    min="0"
-                    max="59"
-                    placeholder="0"
-                    value={customSeconds}
-                    onChange={(e) => setCustomSeconds(e.target.value)}
                   />
                 </div>
               </div>
