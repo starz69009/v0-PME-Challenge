@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { login } from '@/app/auth/actions'
 import Link from 'next/link'
 import { Zap, Loader2 } from 'lucide-react'
@@ -12,6 +13,7 @@ import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
 export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const router = useRouter()
 
   async function handleSubmit(formData: FormData) {
     setLoading(true)
@@ -20,6 +22,8 @@ export default function LoginPage() {
     if (result?.error) {
       setError(result.error)
       setLoading(false)
+    } else if (result?.redirectTo) {
+      router.push(result.redirectTo)
     }
   }
 

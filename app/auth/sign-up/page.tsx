@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { signup } from '@/app/auth/actions'
 import Link from 'next/link'
 import { Zap, Loader2, CheckCircle2 } from 'lucide-react'
@@ -15,6 +16,7 @@ export default function SignUpPage() {
   const [success, setSuccess] = useState(false)
   const [loading, setLoading] = useState(false)
   const [role, setRole] = useState('team_member')
+  const router = useRouter()
 
   async function handleSubmit(formData: FormData) {
     setLoading(true)
@@ -39,14 +41,14 @@ export default function SignUpPage() {
             <div className="mb-2 flex h-16 w-16 items-center justify-center rounded-2xl bg-success/10">
               <CheckCircle2 className="h-8 w-8 text-success" />
             </div>
-            <h1 className="text-xl font-bold text-foreground">Compte cree</h1>
+            <h1 className="text-xl font-bold text-foreground">Compte cree !</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Un email de confirmation vous a ete envoye. Veuillez verifier votre boite de reception.
+              Votre compte a ete cree avec succes. Vous pouvez maintenant vous connecter.
             </p>
           </CardHeader>
           <CardFooter className="justify-center">
-            <Button asChild variant="outline" className="border-border/60">
-              <Link href="/auth/login">Retour a la connexion</Link>
+            <Button className="glow-primary" onClick={() => router.push('/auth/login')}>
+              Se connecter
             </Button>
           </CardFooter>
         </Card>
