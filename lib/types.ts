@@ -77,6 +77,8 @@ export interface SessionEvent {
   event_order: number
   triggered_at: string | null
   resolved_at: string | null
+  duration_seconds: number | null
+  expires_at: string | null
   created_at: string
   events?: GameEvent
 }
