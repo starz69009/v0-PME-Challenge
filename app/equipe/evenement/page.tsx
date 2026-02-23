@@ -97,6 +97,8 @@ export default async function EvenementPage() {
       currentRole={membership.role_in_company}
       teamId={membership.teams.id}
       teamMembers={teamMembers || []}
+      expiresAt={sessionEvent.expires_at}
+      durationSeconds={sessionEvent.duration_seconds}
     />
   )
 }

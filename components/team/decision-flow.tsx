@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { CategoryBadge } from "@/components/category-badge"
-import { CheckCircle, Vote, ShieldCheck, Clock, User, ThumbsUp, TrendingUp, TrendingDown, Minus } from "lucide-react"
+import { CheckCircle, Vote, ShieldCheck, Clock, User, ThumbsUp, TrendingUp, TrendingDown, Minus, Timer, AlertTriangle } from "lucide-react"
 import { SCORE_FIELDS, COMPANY_ROLE_LABELS, DECISION_STATUS_LABELS } from "@/lib/constants"
 import { toast } from "sonner"
 import type { CompanyRole, DecisionStatus, EventCategory } from "@/lib/types"
@@ -20,6 +20,61 @@ interface Props {
   currentRole: CompanyRole
   teamId: string
   teamMembers: any[]
+  expiresAt: string | null
+  durationSeconds: number | null
+}
+
+function CountdownTimer({ expiresAt, onExpire }: { expiresAt: string; onExpire: () => void }) {
+  const [timeLeft, setTimeLeft] = useState(() => {
+    return Math.max(0, Math.floor((new Date(expiresAt).getTime() - Date.now()) / 1000))
+  })
+
+  useEffect(() => {
+    if (timeLeft <= 0) {
+      onExpire()
+      return
+    }
+    const interval = setInterval(() => {
+      const remaining = Math.max(0, Math.floor((new Date(expiresAt).getTime() - Date.now()) / 1000))
+      setTimeLeft(remaining)
+      if (remaining <= 0) {
+        onExpire()
+        clearInterval(interval)
+      }
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [expiresAt, onExpire, timeLeft])
+
+  const mins = Math.floor(timeLeft / 60)
+  const secs = timeLeft % 60
+
+  const isUrgent = timeLeft <= 30
+  const isCritical = timeLeft <= 10
+
+  return (
+    <div className={`flex items-center gap-3 rounded-xl border px-5 py-3 font-mono transition-all ${
+      isCritical
+        ? "border-destructive/50 bg-destructive/10 animate-pulse"
+        : isUrgent
+        ? "border-warning/50 bg-warning/10"
+        : "border-primary/30 bg-primary/5"
+    }`}>
+      <Timer className={`h-5 w-5 ${
+        isCritical ? "text-destructive" : isUrgent ? "text-warning" : "text-primary"
+      }`} />
+      <span className={`text-2xl font-bold tabular-nums ${
+        isCritical ? "text-destructive" : isUrgent ? "text-warning" : "text-primary"
+      }`}>
+        {mins}:{secs.toString().padStart(2, "0")}
+      </span>
+      {isUrgent && !isCritical && (
+        <span className="text-xs font-semibold text-warning">Depechez-vous !</span>
+      )}
+      {isCritical && (
+        <span className="text-xs font-semibold text-destructive">Temps presque ecoule</span>
+      )}
+    </div>
+  )
 }
 
 export function DecisionFlow({
@@ -30,12 +85,18 @@ export function DecisionFlow({
   currentRole,
   teamId,
   teamMembers,
+  expiresAt,
+  durationSeconds,
 }: Props) {
   const router = useRouter()
   const [decision, setDecision] = useState(initialDecision)
   const [votes, setVotes] = useState(initialVotes)
   const [loading, setLoading] = useState(false)
   const [selectedOption, setSelectedOption] = useState<string | null>(null)
+  const [expired, setExpired] = useState(() => {
+    if (!expiresAt) return false
+    return new Date(expiresAt).getTime() <= Date.now()
+  })
 
   const event = sessionEvent.events
   const options = event?.event_options?.sort((a: any, b: any) => a.sort_order - b.sort_order) || []
@@ -52,6 +113,9 @@ export function DecisionFlow({
   const responsibleRole = categoryToRole[event.category || ""] || "dg"
   const isResponsible = currentRole === responsibleRole || currentRole === "dg"
   const isDG = currentRole === "dg"
+
+  // Lock all actions if expired and decision not yet validated
+  const isLocked = expired && status !== "validated"
 
   const refreshData = useCallback(async () => {
     const supabase = createClient()
@@ -77,6 +141,7 @@ export function DecisionFlow({
   }, [refreshData])
 
   async function proposeOption(optionId: string) {
+    if (isLocked) { toast.error("Le temps est ecoule"); return }
     setLoading(true)
     const supabase = createClient()
     const { error } = await supabase
@@ -102,6 +167,7 @@ export function DecisionFlow({
   }
 
   async function castVote(optionId: string) {
+    if (isLocked) { toast.error("Le temps est ecoule"); return }
     setLoading(true)
     const supabase = createClient()
     const { error } = await supabase.from("votes").insert({
@@ -119,6 +185,7 @@ export function DecisionFlow({
   }
 
   async function validateDecision() {
+    if (isLocked) { toast.error("Le temps est ecoule"); return }
     setLoading(true)
     const supabase = createClient()
     const voteCounts: Record<string, number> = {}
@@ -156,6 +223,30 @@ export function DecisionFlow({
 
   return (
     <div className="space-y-6">
+      {/* Countdown Timer */}
+      {expiresAt && !expired && status !== "validated" && (
+        <div className="flex justify-center">
+          <CountdownTimer expiresAt={expiresAt} onExpire={() => setExpired(true)} />
+        </div>
+      )}
+
+      {/* Expired Banner */}
+      {isLocked && (
+        <Card className="border-destructive/30 bg-destructive/5">
+          <CardContent className="flex items-center gap-4 p-4">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-destructive/15">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-destructive">Temps ecoule</p>
+              <p className="text-xs text-muted-foreground">
+                {"Le delai de reaction est termine. L'administrateur va appliquer les scores."}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Event Header */}
       <Card className="border-border/40 bg-card/80">
         <CardHeader>
@@ -169,7 +260,7 @@ export function DecisionFlow({
         </CardHeader>
       </Card>
 
-      {/* Progress Steps - Gamified style */}
+      {/* Progress Steps */}
       <div className="flex items-center justify-center gap-0">
         {steps.map((step, idx) => (
           <div key={step.label} className="flex items-center">
@@ -196,12 +287,14 @@ export function DecisionFlow({
           className={`px-4 py-1 text-xs font-semibold ${
             status === "validated"
               ? "bg-success/15 text-success border-success/30"
+              : isLocked
+              ? "bg-destructive/15 text-destructive border-destructive/30"
               : status === "voting"
               ? "bg-primary/15 text-primary border-primary/30"
               : "bg-muted text-muted-foreground"
           }`}
         >
-          {DECISION_STATUS_LABELS[status]}
+          {isLocked ? "Temps ecoule" : DECISION_STATUS_LABELS[status]}
         </Badge>
       </div>
 
@@ -222,7 +315,7 @@ export function DecisionFlow({
 
       {/* Option Cards */}
       {status !== "validated" && (
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className={`grid gap-4 md:grid-cols-3 ${isLocked ? "pointer-events-none opacity-60" : ""}`}>
           {options.map((option: any) => {
             const isProposed = decision?.proposed_option_id === option.id
             const isSelected = selectedOption === option.id
@@ -240,6 +333,7 @@ export function DecisionFlow({
                     : "border-border/40 bg-card/60 hover:border-primary/25 hover:bg-card/80"
                 }`}
                 onClick={() => {
+                  if (isLocked) return
                   if (status === "pending" && isResponsible) setSelectedOption(option.id)
                   if (status === "voting" && !userVote) setSelectedOption(option.id)
                 }}
@@ -306,8 +400,8 @@ export function DecisionFlow({
                     </div>
                   )}
 
-                  {/* Action buttons */}
-                  {status === "pending" && isResponsible && isSelected && (
+                  {/* Action buttons - hidden when locked */}
+                  {!isLocked && status === "pending" && isResponsible && isSelected && (
                     <Button
                       size="sm"
                       className="mt-2 w-full glow-primary"
@@ -320,7 +414,7 @@ export function DecisionFlow({
                       Proposer cette option
                     </Button>
                   )}
-                  {status === "voting" && !userVote && isSelected && (
+                  {!isLocked && status === "voting" && !userVote && isSelected && (
                     <Button
                       size="sm"
                       className="mt-2 w-full glow-primary"
@@ -341,7 +435,7 @@ export function DecisionFlow({
       )}
 
       {/* Pending message for non-responsible */}
-      {status === "pending" && !isResponsible && (
+      {status === "pending" && !isResponsible && !isLocked && (
         <Card className="border-dashed border-border/40 bg-card/40">
           <CardContent className="flex flex-col items-center gap-3 p-8 text-center">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-muted/50">
@@ -355,7 +449,7 @@ export function DecisionFlow({
       )}
 
       {/* DG Validation */}
-      {status === "voting" && isDG && votes.length > 0 && (
+      {status === "voting" && isDG && votes.length > 0 && !isLocked && (
         <Card className="border-warning/30 bg-warning/5">
           <CardContent className="flex flex-col items-center gap-4 p-6 sm:flex-row sm:justify-between">
             <div className="text-center sm:text-left">
