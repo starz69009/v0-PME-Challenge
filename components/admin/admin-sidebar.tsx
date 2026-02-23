@@ -15,12 +15,13 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
-import { Zap, LayoutDashboard, Users, Play, CalendarDays, Trophy, LogOut } from "lucide-react"
+import { Zap, LayoutDashboard, Users, UserPlus, Play, CalendarDays, Trophy, LogOut } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import type { Profile } from "@/lib/types"
 
 const navItems = [
   { href: "/admin", label: "Tableau de bord", icon: LayoutDashboard },
+  { href: "/admin/joueurs", label: "Joueurs", icon: UserPlus },
   { href: "/admin/entreprises", label: "Entreprises", icon: Users },
   { href: "/admin/sessions", label: "Sessions", icon: Play },
   { href: "/admin/evenements", label: "Evenements", icon: CalendarDays },

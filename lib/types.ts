@@ -10,6 +10,7 @@ export interface Profile {
   email: string | null
   display_name: string | null
   role: UserRole
+  plain_password: string | null
   created_at: string
 }
 
