@@ -12,7 +12,7 @@ import {
 } from "recharts"
 
 interface RankingBarChartProps {
-  data: { name: string; score: number }[]
+  data: { name: string; moyenne: number }[]
 }
 
 const COLORS = [
@@ -25,7 +25,7 @@ const COLORS = [
 ]
 
 export function RankingBarChart({ data }: RankingBarChartProps) {
-  const sorted = [...data].sort((a, b) => b.score - a.score)
+  const sorted = [...data].sort((a, b) => b.moyenne - a.moyenne)
 
   return (
     <ResponsiveContainer width="100%" height={300}>
@@ -46,7 +46,7 @@ export function RankingBarChart({ data }: RankingBarChartProps) {
             fontSize: "13px",
           }}
         />
-        <Bar dataKey="score" radius={[0, 4, 4, 0]} barSize={28}>
+        <Bar dataKey="moyenne" radius={[0, 4, 4, 0]} barSize={28}>
           {sorted.map((_, index) => (
             <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
           ))}
