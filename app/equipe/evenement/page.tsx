@@ -11,25 +11,32 @@ export const metadata = {
 }
 
 export default async function EvenementPage() {
-  // Auth check via cookie-based client
+  // Auth via cookie client
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/auth/login")
 
-  // All reads via admin client (bypasses RLS for reliability)
-  const admin = createAdminClient()
+  // All DB reads via admin client (bypasses RLS for reliability)
+  let db: ReturnType<typeof createAdminClient>
+  try {
+    db = createAdminClient()
+  } catch {
+    // Fallback to cookie client
+    db = supabase as any
+  }
 
-  const { data: memberships } = await admin
+  // Get user's team membership
+  const { data: memberships } = await db
     .from("team_members")
     .select("*, teams(*)")
     .eq("user_id", user.id)
     .limit(1)
 
   const membership = memberships?.[0]
-
   if (!membership?.teams) redirect("/equipe")
 
-  const { data: activeSessions } = await admin
+  // Get active game session
+  const { data: activeSessions } = await db
     .from("game_sessions")
     .select("*")
     .eq("status", "active")
@@ -54,7 +61,8 @@ export default async function EvenementPage() {
     )
   }
 
-  const { data: sessionEvents } = await admin
+  // Get active session event
+  const { data: sessionEvents } = await db
     .from("session_events")
     .select("*, events(*, event_options(*))")
     .eq("session_id", activeSession.id)
@@ -81,32 +89,16 @@ export default async function EvenementPage() {
     )
   }
 
-  const { data: decisions } = await admin
-    .from("decisions")
-    .select("*, event_options(*)")
-    .eq("session_event_id", sessionEvent.id)
-    .eq("team_id", membership.teams.id)
-    .limit(1)
-
-  const decision = decisions?.[0] || null
-
-  const { data: votes } = decision
-    ? await admin
-        .from("votes")
-        .select("*, event_options(*), profiles(id, email, display_name)")
-        .eq("decision_id", decision.id)
-    : { data: [] }
-
-  const { data: teamMembers } = await admin
+  // Get team members for role display
+  const { data: teamMembers } = await db
     .from("team_members")
     .select("*, profiles(id, email, display_name)")
     .eq("team_id", membership.teams.id)
 
+  // Pass minimal props -- component handles its own data fetching via API
   return (
     <DecisionFlow
       sessionEvent={sessionEvent}
-      decision={decision}
-      votes={votes || []}
       currentUserId={user.id}
       currentRole={membership.role_in_company}
       teamId={membership.teams.id}
