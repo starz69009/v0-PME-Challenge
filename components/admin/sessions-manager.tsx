@@ -279,16 +279,21 @@ export function SessionsManager({
     const event = events.find((e) => e.id === selectedEventId)
     if (!event) { toast.error("Evenement introuvable"); setLoading(false); return }
 
-    const { data: existingSessionEvent } = await supabase
-      .from("session_events")
-      .select("*")
-      .eq("session_id", triggerSessionId)
-      .eq("event_id", selectedEventId)
-      .single()
+    // Deactivate any currently active session_events for this session first (prevent duplicates)
+    await supabase.from("session_events").update({ status: "resolved", resolved_at: new Date().toISOString() }).eq("session_id", triggerSessionId).eq("status", "active")
 
     const now = new Date()
     const expiresAt = new Date(now.getTime() + durationSeconds * 1000)
     let sessionEventId: string
+
+    // Check if this event was already triggered before (re-trigger)
+    const { data: existingSEs } = await supabase
+      .from("session_events")
+      .select("*")
+      .eq("session_id", triggerSessionId)
+      .eq("event_id", selectedEventId)
+      .limit(1)
+    const existingSessionEvent = existingSEs?.[0]
 
     if (existingSessionEvent) {
       const { error } = await supabase
@@ -306,23 +311,19 @@ export function SessionsManager({
       sessionEventId = newSE.id
     }
 
+    // Create decisions via admin API route (bypasses RLS)
     const sTeams = getSessionTeams(triggerSessionId)
     if (sTeams.length > 0) {
-      // Check if decisions already exist for this session event (re-triggered event)
-      const { data: existingDecisions } = await supabase
-        .from("decisions")
-        .select("id")
-        .eq("session_event_id", sessionEventId)
-      
-      if (!existingDecisions || existingDecisions.length === 0) {
-        const teamDecisions = sTeams.map((st) => ({ session_event_id: sessionEventId, team_id: st.team_id, status: "pending" as const }))
-        const { error: decError } = await supabase.from("decisions").insert(teamDecisions)
-        if (decError) {
-          console.error("[v0] Failed to insert decisions:", decError)
-          toast.error("Erreur lors de la creation des decisions: " + decError.message)
-          setLoading(false)
-          return
-        }
+      const res = await fetch("/api/decisions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "create_decisions", sessionEventId, teamIds: sTeams.map((st) => st.team_id) }),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        toast.error("Erreur creation decisions: " + (err.error || "Inconnue"))
+        setLoading(false)
+        return
       }
     }
 

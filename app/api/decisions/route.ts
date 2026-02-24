@@ -165,6 +165,46 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true })
   }
 
+  // ===== CREATE DECISIONS (Admin only) =====
+  if (action === "create_decisions") {
+    const { sessionEventId, teamIds } = body
+
+    if (!sessionEventId || !teamIds || !Array.isArray(teamIds)) {
+      return NextResponse.json({ error: "Parametres manquants" }, { status: 400 })
+    }
+
+    // Verify user is admin
+    const { data: profile } = await admin
+      .from("profiles")
+      .select("role")
+      .eq("id", user!.id)
+      .limit(1)
+
+    if (!profile?.[0] || profile[0].role !== "admin") {
+      return NextResponse.json({ error: "Acces reserve aux administrateurs" }, { status: 403 })
+    }
+
+    // Check if decisions already exist
+    const { data: existingDecs } = await admin
+      .from("decisions")
+      .select("id, team_id")
+      .eq("session_event_id", sessionEventId)
+
+    const existingTeamIds = new Set((existingDecs || []).map((d: any) => d.team_id))
+    const newTeamIds = teamIds.filter((tid: string) => !existingTeamIds.has(tid))
+
+    if (newTeamIds.length > 0) {
+      const rows = newTeamIds.map((tid: string) => ({ session_event_id: sessionEventId, team_id: tid, status: "pending" }))
+      const { error } = await admin.from("decisions").insert(rows)
+      if (error) {
+        console.error("[decisions API] create_decisions error:", error.message)
+        return NextResponse.json({ error: error.message }, { status: 500 })
+      }
+    }
+
+    return NextResponse.json({ success: true, created: newTeamIds.length })
+  }
+
   // ===== VALIDATE (DG) =====
   if (action === "validate") {
     const { decisionId, dgComment, overrideOptionId } = body
