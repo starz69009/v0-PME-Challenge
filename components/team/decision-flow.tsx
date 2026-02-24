@@ -87,6 +87,14 @@ export function DecisionFlow({
   const [decision, setDecision] = useState(initialDecision)
   const [votes, setVotes] = useState(initialVotes)
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    console.log("[v0] DecisionFlow mounted - initialDecision:", initialDecision?.id || "NULL", "status:", initialDecision?.status, "decision state:", decision?.id || "NULL")
+  }, [])
+
+  useEffect(() => {
+    console.log("[v0] Decision state changed:", decision?.id || "NULL", "status:", decision?.status)
+  }, [decision])
   const [selectedOption, setSelectedOption] = useState<string | null>(null)
   const [proposalSubmitted, setProposalSubmitted] = useState(false)
   // Specialist argumentaire (step 1)
@@ -179,7 +187,8 @@ export function DecisionFlow({
     setLoading(true)
     setProposalSubmitted(true)
     const supabase = createClient()
-    const { error, count } = await supabase
+    console.log("[v0] proposeOption called - decision.id:", decision.id, "optionId:", optionId, "userId:", currentUserId)
+    const { error, data } = await supabase
       .from("decisions")
       .update({
         proposed_option_id: optionId,
@@ -191,9 +200,14 @@ export function DecisionFlow({
       })
       .eq("id", decision.id)
       .select()
+    console.log("[v0] proposeOption result - error:", error, "data:", data)
     if (error) {
       console.error("[v0] proposeOption error:", error)
       toast.error("Erreur lors de la proposition: " + error.message)
+      setProposalSubmitted(false)
+    } else if (!data || data.length === 0) {
+      console.error("[v0] proposeOption: RLS blocked update - 0 rows returned")
+      toast.error("Vous n'avez pas la permission de modifier cette decision. Verifiez votre role.")
       setProposalSubmitted(false)
     } else {
       toast.success("Option proposee. Les autres membres peuvent maintenant voter.")
