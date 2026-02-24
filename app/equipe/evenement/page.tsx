@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic"
 
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { DecisionFlow } from "@/components/team/decision-flow"
 import { Zap, Clock } from "lucide-react"
 
@@ -10,11 +11,15 @@ export const metadata = {
 }
 
 export default async function EvenementPage() {
+  // Auth check via cookie-based client
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/auth/login")
 
-  const { data: memberships } = await supabase
+  // All reads via admin client (bypasses RLS for reliability)
+  const admin = createAdminClient()
+
+  const { data: memberships } = await admin
     .from("team_members")
     .select("*, teams(*)")
     .eq("user_id", user.id)
@@ -24,7 +29,7 @@ export default async function EvenementPage() {
 
   if (!membership?.teams) redirect("/equipe")
 
-  const { data: activeSessions } = await supabase
+  const { data: activeSessions } = await admin
     .from("game_sessions")
     .select("*")
     .eq("status", "active")
@@ -49,11 +54,12 @@ export default async function EvenementPage() {
     )
   }
 
-  const { data: sessionEvents } = await supabase
+  const { data: sessionEvents } = await admin
     .from("session_events")
     .select("*, events(*, event_options(*))")
     .eq("session_id", activeSession.id)
     .eq("status", "active")
+    .order("created_at", { ascending: false })
     .limit(1)
 
   const sessionEvent = sessionEvents?.[0] || null
@@ -75,7 +81,7 @@ export default async function EvenementPage() {
     )
   }
 
-  const { data: decisions } = await supabase
+  const { data: decisions } = await admin
     .from("decisions")
     .select("*, event_options(*)")
     .eq("session_event_id", sessionEvent.id)
@@ -85,15 +91,15 @@ export default async function EvenementPage() {
   const decision = decisions?.[0] || null
 
   const { data: votes } = decision
-    ? await supabase
+    ? await admin
         .from("votes")
-        .select("*, event_options(*), profiles(*)")
+        .select("*, event_options(*), profiles(id, email, display_name)")
         .eq("decision_id", decision.id)
     : { data: [] }
 
-  const { data: teamMembers } = await supabase
+  const { data: teamMembers } = await admin
     .from("team_members")
-    .select("*, profiles(*)")
+    .select("*, profiles(id, email, display_name)")
     .eq("team_id", membership.teams.id)
 
   return (
