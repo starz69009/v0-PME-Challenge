@@ -25,10 +25,18 @@ interface PlayerProfile {
   created_at: string
 }
 
+interface EntrepriseBasic {
+  id: string
+  name: string
+  description: string | null
+  secteur: string | null
+}
+
 interface TeamBasic {
   id: string
   name: string
   colors_primary: string
+  entreprise_id: string | null
 }
 
 interface MembershipWithTeam {
@@ -41,11 +49,12 @@ interface MembershipWithTeam {
 
 interface Props {
   initialPlayers: PlayerProfile[]
+  entreprises: EntrepriseBasic[]
   teams: TeamBasic[]
   memberships: MembershipWithTeam[]
 }
 
-export function PlayersManager({ initialPlayers, teams, memberships }: Props) {
+export function PlayersManager({ initialPlayers, entreprises, teams, memberships }: Props) {
   const router = useRouter()
   const [createOpen, setCreateOpen] = useState(false)
   const [assignOpen, setAssignOpen] = useState<string | null>(null)
@@ -59,10 +68,12 @@ export function PlayersManager({ initialPlayers, teams, memberships }: Props) {
   const [newEmail, setNewEmail] = useState("")
   const [newPassword, setNewPassword] = useState("")
   const [newName, setNewName] = useState("")
+  const [newEntrepriseId, setNewEntrepriseId] = useState("")
   const [newTeamId, setNewTeamId] = useState("")
   const [newRole, setNewRole] = useState<CompanyRole>("dg")
 
   // Assign form state
+  const [assignEntrepriseId, setAssignEntrepriseId] = useState("")
   const [assignTeamId, setAssignTeamId] = useState("")
   const [assignRole, setAssignRole] = useState<CompanyRole>("dg")
 
@@ -71,6 +82,15 @@ export function PlayersManager({ initialPlayers, teams, memberships }: Props) {
 
   function getMembership(userId: string) {
     return memberships.find((m) => m.user_id === userId)
+  }
+
+  function getEntrepriseName(entrepriseId: string | null) {
+    if (!entrepriseId) return null
+    return entreprises.find((e) => e.id === entrepriseId)?.name || null
+  }
+
+  function getTeamsForEntreprise(entrepriseId: string) {
+    return teams.filter((t) => t.entreprise_id === entrepriseId)
   }
 
   function togglePassword(userId: string) {
@@ -108,6 +128,7 @@ export function PlayersManager({ initialPlayers, teams, memberships }: Props) {
       setNewEmail("")
       setNewPassword("")
       setNewName("")
+      setNewEntrepriseId("")
       setNewTeamId("")
       setNewRole("dg")
       setCreateOpen(false)
@@ -141,6 +162,7 @@ export function PlayersManager({ initialPlayers, teams, memberships }: Props) {
     } else {
       toast.success("Affectation mise a jour")
       setAssignOpen(null)
+      setAssignEntrepriseId("")
       setAssignTeamId("")
       setAssignRole("dg")
       router.refresh()
@@ -183,6 +205,95 @@ export function PlayersManager({ initialPlayers, teams, memberships }: Props) {
     let pwd = ""
     for (let i = 0; i < 8; i++) pwd += chars[Math.floor(Math.random() * chars.length)]
     return pwd
+  }
+
+  // Entreprise > Equipe > Poste selector component
+  function EntrepriseTeamRoleSelector({
+    entrepriseId,
+    setEntrepriseId,
+    teamId,
+    setTeamId,
+    role,
+    setRole,
+    optional = false,
+  }: {
+    entrepriseId: string
+    setEntrepriseId: (v: string) => void
+    teamId: string
+    setTeamId: (v: string) => void
+    role: CompanyRole
+    setRole: (v: CompanyRole) => void
+    optional?: boolean
+  }) {
+    const filteredTeams = entrepriseId ? getTeamsForEntreprise(entrepriseId) : []
+
+    return (
+      <div className="rounded-lg border border-border/30 bg-muted/20 p-4 space-y-3">
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+          Affectation{optional ? " (optionnel)" : ""}
+        </p>
+        <div className="space-y-2">
+          <Label className="text-sm text-muted-foreground">Entreprise</Label>
+          <Select value={entrepriseId} onValueChange={(v) => {
+            setEntrepriseId(v)
+            setTeamId("") // reset team when entreprise changes
+          }}>
+            <SelectTrigger className="bg-secondary/50 border-border/40">
+              <SelectValue placeholder={optional ? "Aucune pour le moment" : "Selectionner une entreprise"} />
+            </SelectTrigger>
+            <SelectContent className="border-border/40 bg-card">
+              {entreprises.map((e) => (
+                <SelectItem key={e.id} value={e.id}>
+                  {e.name}
+                  {e.secteur && <span className="ml-1 text-muted-foreground">({e.secteur})</span>}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        {entrepriseId && (
+          <div className="space-y-2">
+            <Label className="text-sm text-muted-foreground">Equipe</Label>
+            {filteredTeams.length === 0 ? (
+              <p className="text-xs text-muted-foreground/60 rounded-md bg-muted/30 px-3 py-2">
+                Aucune equipe dans cette entreprise. Creez-en une dans la page Equipes.
+              </p>
+            ) : (
+              <Select value={teamId} onValueChange={setTeamId}>
+                <SelectTrigger className="bg-secondary/50 border-border/40">
+                  <SelectValue placeholder="Selectionner une equipe" />
+                </SelectTrigger>
+                <SelectContent className="border-border/40 bg-card">
+                  {filteredTeams.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      <div className="flex items-center gap-2">
+                        <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: t.colors_primary }} />
+                        {t.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+        )}
+        {teamId && (
+          <div className="space-y-2">
+            <Label className="text-sm text-muted-foreground">Poste</Label>
+            <Select value={role} onValueChange={(v) => setRole(v as CompanyRole)}>
+              <SelectTrigger className="bg-secondary/50 border-border/40">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="border-border/40 bg-card">
+                {Object.entries(COMPANY_ROLE_LABELS).map(([key, label]) => (
+                  <SelectItem key={key} value={key}>{label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+      </div>
+    )
   }
 
   return (
@@ -261,37 +372,15 @@ export function PlayersManager({ initialPlayers, teams, memberships }: Props) {
                   </div>
                 </div>
 
-                <div className="rounded-lg border border-border/30 bg-muted/20 p-4 space-y-3">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Affectation (optionnel)</p>
-                  <div className="space-y-2">
-                    <Label className="text-sm text-muted-foreground">Entreprise</Label>
-                    <Select value={newTeamId} onValueChange={setNewTeamId}>
-                      <SelectTrigger className="bg-secondary/50 border-border/40">
-                        <SelectValue placeholder="Aucune pour le moment" />
-                      </SelectTrigger>
-                      <SelectContent className="border-border/40 bg-card">
-                        {teams.map((t) => (
-                          <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  {newTeamId && (
-                    <div className="space-y-2">
-                      <Label className="text-sm text-muted-foreground">Poste</Label>
-                      <Select value={newRole} onValueChange={(v) => setNewRole(v as CompanyRole)}>
-                        <SelectTrigger className="bg-secondary/50 border-border/40">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="border-border/40 bg-card">
-                          {Object.entries(COMPANY_ROLE_LABELS).map(([key, label]) => (
-                            <SelectItem key={key} value={key}>{label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-                </div>
+                <EntrepriseTeamRoleSelector
+                  entrepriseId={newEntrepriseId}
+                  setEntrepriseId={setNewEntrepriseId}
+                  teamId={newTeamId}
+                  setTeamId={setNewTeamId}
+                  role={newRole}
+                  setRole={setNewRole}
+                  optional
+                />
 
                 <Button
                   onClick={handleCreate}
@@ -338,6 +427,7 @@ export function PlayersManager({ initialPlayers, teams, memberships }: Props) {
                     <TableHead className="text-muted-foreground">Email</TableHead>
                     <TableHead className="text-muted-foreground">Mot de passe</TableHead>
                     <TableHead className="text-muted-foreground">Entreprise</TableHead>
+                    <TableHead className="text-muted-foreground">Equipe</TableHead>
                     <TableHead className="text-muted-foreground">Poste</TableHead>
                     <TableHead className="w-28 text-muted-foreground">Actions</TableHead>
                   </TableRow>
@@ -346,6 +436,7 @@ export function PlayersManager({ initialPlayers, teams, memberships }: Props) {
                   {filteredPlayers.map((player) => {
                     const membership = getMembership(player.id)
                     const isPasswordVisible = showPasswords.has(player.id)
+                    const entrepriseName = membership?.teams ? getEntrepriseName(membership.teams.entreprise_id) : null
 
                     return (
                       <TableRow key={player.id} className="border-border/15 hover:bg-muted/20">
@@ -359,7 +450,7 @@ export function PlayersManager({ initialPlayers, teams, memberships }: Props) {
                           {player.plain_password ? (
                             <div className="flex items-center gap-1.5">
                               <code className="rounded bg-muted/30 px-2 py-0.5 font-mono text-xs text-foreground">
-                                {isPasswordVisible ? player.plain_password : "••••••••"}
+                                {isPasswordVisible ? player.plain_password : "--------"}
                               </code>
                               <Button
                                 variant="ghost"
@@ -374,99 +465,36 @@ export function PlayersManager({ initialPlayers, teams, memberships }: Props) {
                             <span className="text-xs text-muted-foreground/50">Non disponible</span>
                           )}
                         </TableCell>
+
+                        {/* Entreprise */}
+                        <TableCell>
+                          {entrepriseName ? (
+                            <Badge variant="outline" className="text-xs border-border/40 text-muted-foreground">
+                              {entrepriseName}
+                            </Badge>
+                          ) : membership?.teams ? (
+                            <span className="text-xs text-muted-foreground/40 italic">Non definie</span>
+                          ) : null}
+                        </TableCell>
+
+                        {/* Equipe */}
                         <TableCell>
                           {membership?.teams ? (
-                            <Select
-                              defaultValue={membership.team_id}
-                              onValueChange={(teamId) => {
-                                const fd = new FormData()
-                                fd.set("userId", player.id)
-                                fd.set("teamId", teamId)
-                                fd.set("roleInCompany", membership.role_in_company)
-                                updatePlayerTeam(fd).then((r) => {
-                                  if (r.error) toast.error(r.error)
-                                  else { toast.success("Equipe mise a jour"); router.refresh() }
-                                })
+                            <Badge
+                              variant="outline"
+                              className="text-xs"
+                              style={{
+                                borderColor: `${membership.teams.colors_primary}40`,
+                                color: membership.teams.colors_primary,
+                                backgroundColor: `${membership.teams.colors_primary}10`,
                               }}
                             >
-                              <SelectTrigger className="h-7 w-auto gap-1 border-0 bg-transparent px-2 text-xs font-medium shadow-none hover:bg-muted/30">
-                                <Badge
-                                  variant="outline"
-                                  className="pointer-events-none text-xs"
-                                  style={{
-                                    borderColor: `${membership.teams.colors_primary}40`,
-                                    color: membership.teams.colors_primary,
-                                    backgroundColor: `${membership.teams.colors_primary}10`,
-                                  }}
-                                >
-                                  {membership.teams.name}
-                                </Badge>
-                              </SelectTrigger>
-                              <SelectContent className="border-border/40 bg-card">
-                                {teams.map((t) => (
-                                  <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          ) : (
-                            <Dialog open={assignOpen === player.id} onOpenChange={(open) => {
-                              setAssignOpen(open ? player.id : null)
-                              if (!open) { setAssignTeamId(""); setAssignRole("dg") }
-                            }}>
-                              <DialogTrigger asChild>
-                                <Button variant="outline" size="sm" className="h-7 gap-1.5 border-dashed border-primary/30 text-xs text-primary hover:bg-primary/10 hover:text-primary">
-                                  <UserPlus className="h-3 w-3" />
-                                  Affecter
-                                </Button>
-                              </DialogTrigger>
-                              <DialogContent className="border-border/40 bg-card">
-                                <DialogHeader>
-                                  <DialogTitle className="text-foreground">
-                                    Affecter {player.display_name || player.email}
-                                  </DialogTitle>
-                                  <DialogDescription className="text-muted-foreground">
-                                    Choisissez l{"'"}equipe et le poste du joueur.
-                                  </DialogDescription>
-                                </DialogHeader>
-                                <div className="space-y-4 pt-2">
-                                  <div className="space-y-2">
-                                    <Label className="text-sm text-muted-foreground">Equipe</Label>
-                                    <Select value={assignTeamId} onValueChange={setAssignTeamId}>
-                                      <SelectTrigger className="bg-secondary/50 border-border/40">
-                                        <SelectValue placeholder="Selectionner une equipe" />
-                                      </SelectTrigger>
-                                      <SelectContent className="border-border/40 bg-card">
-                                        {teams.map((t) => (
-                                          <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-                                  <div className="space-y-2">
-                                    <Label className="text-sm text-muted-foreground">Poste</Label>
-                                    <Select value={assignRole} onValueChange={(v) => setAssignRole(v as CompanyRole)}>
-                                      <SelectTrigger className="bg-secondary/50 border-border/40">
-                                        <SelectValue />
-                                      </SelectTrigger>
-                                      <SelectContent className="border-border/40 bg-card">
-                                        {Object.entries(COMPANY_ROLE_LABELS).map(([key, label]) => (
-                                          <SelectItem key={key} value={key}>{label}</SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-                                  <Button
-                                    onClick={() => handleAssign(player.id)}
-                                    disabled={loading || !assignTeamId}
-                                    className="w-full"
-                                  >
-                                    {loading ? "..." : "Confirmer l'affectation"}
-                                  </Button>
-                                </div>
-                              </DialogContent>
-                            </Dialog>
-                          )}
+                              {membership.teams.name}
+                            </Badge>
+                          ) : null}
                         </TableCell>
+
+                        {/* Poste */}
                         <TableCell>
                           {membership ? (
                             <Select
@@ -491,14 +519,51 @@ export function PlayersManager({ initialPlayers, teams, memberships }: Props) {
                                 ))}
                               </SelectContent>
                             </Select>
-                          ) : (
-                            <span className="text-xs text-muted-foreground/50">---</span>
-                          )}
+                          ) : null}
                         </TableCell>
+
+                        {/* Affectation button (if not assigned) + Actions */}
                         <TableCell>
                           <div className="flex items-center gap-1">
-                            {/* Remove from team */}
-                            {membership && (
+                            {/* Assign to team */}
+                            {!membership ? (
+                              <Dialog open={assignOpen === player.id} onOpenChange={(open) => {
+                                setAssignOpen(open ? player.id : null)
+                                if (!open) { setAssignEntrepriseId(""); setAssignTeamId(""); setAssignRole("dg") }
+                              }}>
+                                <DialogTrigger asChild>
+                                  <Button variant="outline" size="sm" className="h-7 gap-1.5 border-dashed border-primary/30 text-xs text-primary hover:bg-primary/10 hover:text-primary">
+                                    <UserPlus className="h-3 w-3" />
+                                    Affecter
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent className="border-border/40 bg-card">
+                                  <DialogHeader>
+                                    <DialogTitle className="text-foreground">
+                                      Affecter {player.display_name || player.email}
+                                    </DialogTitle>
+                                    <DialogDescription className="text-muted-foreground">
+                                      Choisissez l{"'"}entreprise, l{"'"}equipe et le poste du joueur.
+                                    </DialogDescription>
+                                  </DialogHeader>
+                                  <EntrepriseTeamRoleSelector
+                                    entrepriseId={assignEntrepriseId}
+                                    setEntrepriseId={setAssignEntrepriseId}
+                                    teamId={assignTeamId}
+                                    setTeamId={setAssignTeamId}
+                                    role={assignRole}
+                                    setRole={setAssignRole}
+                                  />
+                                  <Button
+                                    onClick={() => handleAssign(player.id)}
+                                    disabled={loading || !assignTeamId}
+                                    className="w-full"
+                                  >
+                                    {loading ? "..." : "Confirmer l'affectation"}
+                                  </Button>
+                                </DialogContent>
+                              </Dialog>
+                            ) : (
                               <Button
                                 variant="ghost"
                                 size="sm"

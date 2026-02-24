@@ -14,6 +14,14 @@ export interface Profile {
   created_at: string
 }
 
+export interface Entreprise {
+  id: string
+  name: string
+  description: string | null
+  secteur: string | null
+  created_at: string
+}
+
 export interface Team {
   id: string
   name: string
@@ -22,6 +30,7 @@ export interface Team {
   slogan: string | null
   colors_primary: string
   colors_secondary: string
+  entreprise_id: string | null
   created_by: string | null
   created_at: string
 }
