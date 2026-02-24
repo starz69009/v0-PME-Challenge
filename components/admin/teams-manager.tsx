@@ -12,9 +12,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Plus, Trash2, Building2, UserPlus, UserMinus, Pencil, Users, Crown, Briefcase, HandCoins, Factory } from "lucide-react"
-import { COMPANY_ROLE_LABELS } from "@/lib/constants"
+import { COMPANY_ROLE_LABELS, SESSION_STATUS_LABELS } from "@/lib/constants"
 import { toast } from "sonner"
-import type { Profile, CompanyRole } from "@/lib/types"
+import type { Profile, CompanyRole, SessionStatus } from "@/lib/types"
+
+interface SessionTeamRef {
+  id: string
+  session_id: string
+  team_id: string
+  game_sessions: { id: string; name: string; status: string } | null
+}
 
 const ROLE_ICONS: Record<CompanyRole, React.ElementType> = {
   dg: Crown,
@@ -135,7 +142,7 @@ interface TeamWithMembers {
   }>
 }
 
-export function TeamsManager({ initialTeams, allProfiles }: { initialTeams: TeamWithMembers[]; allProfiles: Profile[] }) {
+export function TeamsManager({ initialTeams, allProfiles, sessionTeams = [] }: { initialTeams: TeamWithMembers[]; allProfiles: Profile[]; sessionTeams?: SessionTeamRef[] }) {
   const router = useRouter()
   const [createOpen, setCreateOpen] = useState(false)
   const [editOpen, setEditOpen] = useState<string | null>(null)
@@ -365,6 +372,24 @@ export function TeamsManager({ initialTeams, allProfiles }: { initialTeams: Team
                 </CardHeader>
 
                 <CardContent className="space-y-3 pt-0">
+                  {/* Sessions this team participates in */}
+                  {(() => {
+                    const teamSessions = sessionTeams.filter((st) => st.team_id === team.id && st.game_sessions)
+                    if (teamSessions.length === 0) return null
+                    return (
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {teamSessions.map((st) => (
+                          <Badge key={st.id} variant="outline" className="text-[10px] border-border/30 text-muted-foreground gap-1">
+                            {st.game_sessions!.name}
+                            <span className="text-muted-foreground/50">
+                              ({SESSION_STATUS_LABELS[st.game_sessions!.status as SessionStatus]})
+                            </span>
+                          </Badge>
+                        ))}
+                      </div>
+                    )
+                  })()}
+
                   {/* Role slots */}
                   <div className="space-y-1.5">
                     {ROLE_ORDER.map((role) => {

@@ -12,7 +12,7 @@ export default async function SessionsPage() {
 
   const { data: sessions } = await supabase
     .from("game_sessions")
-    .select("*")
+    .select("*, entreprises(*)")
     .order("created_at", { ascending: false })
 
   const { data: events } = await supabase
@@ -24,13 +24,28 @@ export default async function SessionsPage() {
     .from("teams")
     .select("*")
 
+  const { data: entreprises } = await supabase
+    .from("entreprises")
+    .select("*")
+    .order("name")
+
+  const { data: sessionTeams } = await supabase
+    .from("session_teams")
+    .select("*, teams(*)")
+
   return (
     <div className="flex-1 p-6 lg:p-8">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-foreground">Sessions de jeu</h1>
         <p className="mt-1 text-muted-foreground">Creez et gerez les sessions de jeu</p>
       </div>
-      <SessionsManager initialSessions={sessions || []} events={events || []} teams={teams || []} />
+      <SessionsManager
+        initialSessions={sessions || []}
+        events={events || []}
+        teams={teams || []}
+        entreprises={entreprises || []}
+        sessionTeams={sessionTeams || []}
+      />
     </div>
   )
 }

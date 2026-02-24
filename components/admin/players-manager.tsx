@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Trash2, Eye, EyeOff, UserPlus, Users, KeyRound, Building2, Search, RefreshCw } from "lucide-react"
+import { Trash2, Eye, EyeOff, UserPlus, Users, KeyRound, UserMinus, Search, RefreshCw } from "lucide-react"
 import { COMPANY_ROLE_LABELS } from "@/lib/constants"
 import { createPlayer, deletePlayer, updatePlayerTeam, removePlayerFromTeam, resetPlayerPassword } from "@/app/admin/joueurs/actions"
 import { toast } from "sonner"
@@ -25,18 +25,10 @@ interface PlayerProfile {
   created_at: string
 }
 
-interface EntrepriseBasic {
-  id: string
-  name: string
-  description: string | null
-  secteur: string | null
-}
-
 interface TeamBasic {
   id: string
   name: string
   colors_primary: string
-  entreprise_id: string | null
 }
 
 interface MembershipWithTeam {
@@ -49,12 +41,11 @@ interface MembershipWithTeam {
 
 interface Props {
   initialPlayers: PlayerProfile[]
-  entreprises: EntrepriseBasic[]
   teams: TeamBasic[]
   memberships: MembershipWithTeam[]
 }
 
-export function PlayersManager({ initialPlayers, entreprises, teams, memberships }: Props) {
+export function PlayersManager({ initialPlayers, teams, memberships }: Props) {
   const router = useRouter()
   const [createOpen, setCreateOpen] = useState(false)
   const [assignOpen, setAssignOpen] = useState<string | null>(null)
@@ -68,12 +59,10 @@ export function PlayersManager({ initialPlayers, entreprises, teams, memberships
   const [newEmail, setNewEmail] = useState("")
   const [newPassword, setNewPassword] = useState("")
   const [newName, setNewName] = useState("")
-  const [newEntrepriseId, setNewEntrepriseId] = useState("")
   const [newTeamId, setNewTeamId] = useState("")
   const [newRole, setNewRole] = useState<CompanyRole>("dg")
 
   // Assign form state
-  const [assignEntrepriseId, setAssignEntrepriseId] = useState("")
   const [assignTeamId, setAssignTeamId] = useState("")
   const [assignRole, setAssignRole] = useState<CompanyRole>("dg")
 
@@ -82,15 +71,6 @@ export function PlayersManager({ initialPlayers, entreprises, teams, memberships
 
   function getMembership(userId: string) {
     return memberships.find((m) => m.user_id === userId)
-  }
-
-  function getEntrepriseName(entrepriseId: string | null) {
-    if (!entrepriseId) return null
-    return entreprises.find((e) => e.id === entrepriseId)?.name || null
-  }
-
-  function getTeamsForEntreprise(entrepriseId: string) {
-    return teams.filter((t) => t.entreprise_id === entrepriseId)
   }
 
   function togglePassword(userId: string) {
@@ -128,7 +108,6 @@ export function PlayersManager({ initialPlayers, entreprises, teams, memberships
       setNewEmail("")
       setNewPassword("")
       setNewName("")
-      setNewEntrepriseId("")
       setNewTeamId("")
       setNewRole("dg")
       setCreateOpen(false)
@@ -162,7 +141,6 @@ export function PlayersManager({ initialPlayers, entreprises, teams, memberships
     } else {
       toast.success("Affectation mise a jour")
       setAssignOpen(null)
-      setAssignEntrepriseId("")
       setAssignTeamId("")
       setAssignRole("dg")
       router.refresh()
@@ -207,90 +185,50 @@ export function PlayersManager({ initialPlayers, entreprises, teams, memberships
     return pwd
   }
 
-  // Equipe + Poste selector (with optional Entreprise grouping)
+  // Simple Team + Role selector
   function TeamRoleSelector({
-    entrepriseId,
-    setEntrepriseId,
     teamId,
     setTeamId,
     role,
     setRole,
     optional = false,
   }: {
-    entrepriseId: string
-    setEntrepriseId: (v: string) => void
     teamId: string
     setTeamId: (v: string) => void
     role: CompanyRole
     setRole: (v: CompanyRole) => void
     optional?: boolean
   }) {
-    const hasEntreprises = entreprises.length > 0
-    // If entreprises exist, filter teams by selected entreprise. Otherwise show all teams.
-    const availableTeams = hasEntreprises && entrepriseId
-      ? getTeamsForEntreprise(entrepriseId)
-      : !hasEntreprises
-        ? teams
-        : []
-
     return (
       <div className="rounded-lg border border-border/30 bg-muted/20 p-4 space-y-3">
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
           Affectation{optional ? " (optionnel)" : ""}
         </p>
 
-        {/* Only show Entreprise select if entreprises exist */}
-        {hasEntreprises && (
-          <div className="space-y-2">
-            <Label className="text-sm text-muted-foreground">Entreprise</Label>
-            <Select value={entrepriseId} onValueChange={(v) => {
-              setEntrepriseId(v)
-              setTeamId("")
-            }}>
+        <div className="space-y-2">
+          <Label className="text-sm text-muted-foreground">Equipe</Label>
+          {teams.length === 0 ? (
+            <p className="text-xs text-muted-foreground/60 rounded-md bg-muted/30 px-3 py-2">
+              Aucune equipe disponible. Creez-en une dans la page Equipes.
+            </p>
+          ) : (
+            <Select value={teamId} onValueChange={setTeamId}>
               <SelectTrigger className="bg-secondary/50 border-border/40">
-                <SelectValue placeholder={optional ? "Aucune pour le moment" : "Selectionner une entreprise"} />
+                <SelectValue placeholder={optional ? "Aucune pour le moment" : "Selectionner une equipe"} />
               </SelectTrigger>
               <SelectContent className="border-border/40 bg-card">
-                {entreprises.map((e) => (
-                  <SelectItem key={e.id} value={e.id}>
-                    {e.name}
-                    {e.secteur && <span className="ml-1 text-muted-foreground">({e.secteur})</span>}
+                {teams.map((t) => (
+                  <SelectItem key={t.id} value={t.id}>
+                    <div className="flex items-center gap-2">
+                      <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: t.colors_primary }} />
+                      {t.name}
+                    </div>
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-          </div>
-        )}
-
-        {/* Show team select: always if no entreprises, or after entreprise selected */}
-        {(!hasEntreprises || entrepriseId) && (
-          <div className="space-y-2">
-            <Label className="text-sm text-muted-foreground">Equipe</Label>
-            {availableTeams.length === 0 ? (
-              <p className="text-xs text-muted-foreground/60 rounded-md bg-muted/30 px-3 py-2">
-                {hasEntreprises
-                  ? "Aucune equipe dans cette entreprise. Creez-en une dans la page Equipes."
-                  : "Aucune equipe disponible. Creez-en une dans la page Equipes."}
-              </p>
-            ) : (
-              <Select value={teamId} onValueChange={setTeamId}>
-                <SelectTrigger className="bg-secondary/50 border-border/40">
-                  <SelectValue placeholder="Selectionner une equipe" />
-                </SelectTrigger>
-                <SelectContent className="border-border/40 bg-card">
-                  {availableTeams.map((t) => (
-                    <SelectItem key={t.id} value={t.id}>
-                      <div className="flex items-center gap-2">
-                        <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: t.colors_primary }} />
-                        {t.name}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-          </div>
-        )}
+          )}
+        </div>
 
         {teamId && (
           <div className="space-y-2">
@@ -388,8 +326,6 @@ export function PlayersManager({ initialPlayers, entreprises, teams, memberships
                 </div>
 
                 <TeamRoleSelector
-                  entrepriseId={newEntrepriseId}
-                  setEntrepriseId={setNewEntrepriseId}
                   teamId={newTeamId}
                   setTeamId={setNewTeamId}
                   role={newRole}
@@ -441,7 +377,6 @@ export function PlayersManager({ initialPlayers, entreprises, teams, memberships
                     <TableHead className="text-muted-foreground">Nom</TableHead>
                     <TableHead className="text-muted-foreground">Email</TableHead>
                     <TableHead className="text-muted-foreground">Mot de passe</TableHead>
-                    <TableHead className="text-muted-foreground">Entreprise</TableHead>
                     <TableHead className="text-muted-foreground">Equipe</TableHead>
                     <TableHead className="text-muted-foreground">Poste</TableHead>
                     <TableHead className="w-28 text-muted-foreground">Actions</TableHead>
@@ -451,7 +386,6 @@ export function PlayersManager({ initialPlayers, entreprises, teams, memberships
                   {filteredPlayers.map((player) => {
                     const membership = getMembership(player.id)
                     const isPasswordVisible = showPasswords.has(player.id)
-                    const entrepriseName = membership?.teams ? getEntrepriseName(membership.teams.entreprise_id) : null
 
                     return (
                       <TableRow key={player.id} className="border-border/15 hover:bg-muted/20">
@@ -479,17 +413,6 @@ export function PlayersManager({ initialPlayers, entreprises, teams, memberships
                           ) : (
                             <span className="text-xs text-muted-foreground/50">Non disponible</span>
                           )}
-                        </TableCell>
-
-                        {/* Entreprise */}
-                        <TableCell>
-                          {entrepriseName ? (
-                            <Badge variant="outline" className="text-xs border-border/40 text-muted-foreground">
-                              {entrepriseName}
-                            </Badge>
-                          ) : membership?.teams ? (
-                            <span className="text-xs text-muted-foreground/40 italic">Non definie</span>
-                          ) : null}
                         </TableCell>
 
                         {/* Equipe */}
@@ -537,14 +460,14 @@ export function PlayersManager({ initialPlayers, entreprises, teams, memberships
                           ) : null}
                         </TableCell>
 
-                        {/* Affectation button (if not assigned) + Actions */}
+                        {/* Actions */}
                         <TableCell>
                           <div className="flex items-center gap-1">
                             {/* Assign to team */}
                             {!membership ? (
                               <Dialog open={assignOpen === player.id} onOpenChange={(open) => {
                                 setAssignOpen(open ? player.id : null)
-                                if (!open) { setAssignEntrepriseId(""); setAssignTeamId(""); setAssignRole("dg") }
+                                if (!open) { setAssignTeamId(""); setAssignRole("dg") }
                               }}>
                                 <DialogTrigger asChild>
                                   <Button variant="outline" size="sm" className="h-7 gap-1.5 border-dashed border-primary/30 text-xs text-primary hover:bg-primary/10 hover:text-primary">
@@ -558,12 +481,10 @@ export function PlayersManager({ initialPlayers, entreprises, teams, memberships
                                       Affecter {player.display_name || player.email}
                                     </DialogTitle>
                                     <DialogDescription className="text-muted-foreground">
-                                      Choisissez l{"'"}entreprise, l{"'"}equipe et le poste du joueur.
+                                      Choisissez l{"'"}equipe et le poste du joueur.
                                     </DialogDescription>
                                   </DialogHeader>
                                   <TeamRoleSelector
-                                    entrepriseId={assignEntrepriseId}
-                                    setEntrepriseId={setAssignEntrepriseId}
                                     teamId={assignTeamId}
                                     setTeamId={setAssignTeamId}
                                     role={assignRole}
@@ -587,7 +508,7 @@ export function PlayersManager({ initialPlayers, entreprises, teams, memberships
                                 onClick={() => handleRemoveFromTeam(player.id)}
                                 disabled={loading}
                               >
-                                <Building2 className="h-3.5 w-3.5" />
+                                <UserMinus className="h-3.5 w-3.5" />
                               </Button>
                             )}
 
