@@ -46,6 +46,14 @@ export default async function SessionsPage() {
     .from("team_scores")
     .select("*")
 
+  const { data: votes } = await supabase
+    .from("votes")
+    .select("*, profiles(*), event_options(*)")
+
+  const { data: teamMembers } = await supabase
+    .from("team_members")
+    .select("*, profiles(*)")
+
   return (
     <div className="flex-1 p-6 lg:p-8">
       <div className="mb-8">
@@ -61,6 +69,8 @@ export default async function SessionsPage() {
         sessionEvents={sessionEvents || []}
         decisions={decisions || []}
         teamScores={teamScores || []}
+        votes={votes || []}
+        teamMembers={teamMembers || []}
       />
     </div>
   )

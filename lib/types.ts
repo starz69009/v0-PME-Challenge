@@ -113,6 +113,8 @@ export interface Decision {
   dg_validated: boolean
   dg_validated_by: string | null
   dg_validated_at: string | null
+  dg_comment: string | null
+  dg_override_option_id: string | null
   comment_avantages: string | null
   comment_inconvenients: string | null
   comment_justification: string | null
@@ -127,6 +129,8 @@ export interface Vote {
   decision_id: string
   user_id: string
   option_id: string
+  approved: boolean | null
+  comment: string | null
   created_at: string
   event_options?: EventOption
   profiles?: Profile
