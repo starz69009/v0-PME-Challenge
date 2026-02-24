@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Plus, Trash2, Eye, EyeOff, UserPlus, Users, KeyRound, Building2, Search, RefreshCw } from "lucide-react"
+import { Trash2, Eye, EyeOff, UserPlus, Users, KeyRound, Building2, Search, RefreshCw } from "lucide-react"
 import { COMPANY_ROLE_LABELS } from "@/lib/constants"
 import { createPlayer, deletePlayer, updatePlayerTeam, removePlayerFromTeam, resetPlayerPassword } from "@/app/admin/joueurs/actions"
 import { toast } from "sonner"
@@ -376,46 +376,47 @@ export function PlayersManager({ initialPlayers, teams, memberships }: Props) {
                         </TableCell>
                         <TableCell>
                           {membership?.teams ? (
-                            <Badge
-                              variant="outline"
-                              className="text-xs"
-                              style={{
-                                borderColor: `${membership.teams.colors_primary}40`,
-                                color: membership.teams.colors_primary,
-                                backgroundColor: `${membership.teams.colors_primary}10`,
+                            <Select
+                              defaultValue={membership.team_id}
+                              onValueChange={(teamId) => {
+                                const fd = new FormData()
+                                fd.set("userId", player.id)
+                                fd.set("teamId", teamId)
+                                fd.set("roleInCompany", membership.role_in_company)
+                                updatePlayerTeam(fd).then((r) => {
+                                  if (r.error) toast.error(r.error)
+                                  else { toast.success("Equipe mise a jour"); router.refresh() }
+                                })
                               }}
                             >
-                              {membership.teams.name}
-                            </Badge>
+                              <SelectTrigger className="h-7 w-auto gap-1 border-0 bg-transparent px-2 text-xs font-medium shadow-none hover:bg-muted/30">
+                                <Badge
+                                  variant="outline"
+                                  className="pointer-events-none text-xs"
+                                  style={{
+                                    borderColor: `${membership.teams.colors_primary}40`,
+                                    color: membership.teams.colors_primary,
+                                    backgroundColor: `${membership.teams.colors_primary}10`,
+                                  }}
+                                >
+                                  {membership.teams.name}
+                                </Badge>
+                              </SelectTrigger>
+                              <SelectContent className="border-border/40 bg-card">
+                                {teams.map((t) => (
+                                  <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           ) : (
-                            <span className="text-xs text-muted-foreground/50">Non assigne</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {membership ? (
-                            <Badge variant="outline" className="text-xs border-border/40 text-muted-foreground">
-                              {COMPANY_ROLE_LABELS[membership.role_in_company]}
-                            </Badge>
-                          ) : (
-                            <span className="text-xs text-muted-foreground/50">---</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            {/* Assign / Change team */}
                             <Dialog open={assignOpen === player.id} onOpenChange={(open) => {
                               setAssignOpen(open ? player.id : null)
-                              if (open && membership) {
-                                setAssignTeamId(membership.team_id)
-                                setAssignRole(membership.role_in_company)
-                              } else if (open) {
-                                setAssignTeamId("")
-                                setAssignRole("dg")
-                              }
+                              if (!open) { setAssignTeamId(""); setAssignRole("dg") }
                             }}>
                               <DialogTrigger asChild>
-                                <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground hover:text-primary" title="Affecter a une equipe">
-                                  <Building2 className="h-3.5 w-3.5" />
+                                <Button variant="outline" size="sm" className="h-7 gap-1.5 border-dashed border-primary/30 text-xs text-primary hover:bg-primary/10 hover:text-primary">
+                                  <UserPlus className="h-3 w-3" />
+                                  Affecter
                                 </Button>
                               </DialogTrigger>
                               <DialogContent className="border-border/40 bg-card">
@@ -424,15 +425,15 @@ export function PlayersManager({ initialPlayers, teams, memberships }: Props) {
                                     Affecter {player.display_name || player.email}
                                   </DialogTitle>
                                   <DialogDescription className="text-muted-foreground">
-                                    Choisissez l{"'"}entreprise et le poste du joueur.
+                                    Choisissez l{"'"}equipe et le poste du joueur.
                                   </DialogDescription>
                                 </DialogHeader>
                                 <div className="space-y-4 pt-2">
                                   <div className="space-y-2">
-                                    <Label className="text-sm text-muted-foreground">Entreprise</Label>
+                                    <Label className="text-sm text-muted-foreground">Equipe</Label>
                                     <Select value={assignTeamId} onValueChange={setAssignTeamId}>
                                       <SelectTrigger className="bg-secondary/50 border-border/40">
-                                        <SelectValue placeholder="Selectionner une entreprise" />
+                                        <SelectValue placeholder="Selectionner une equipe" />
                                       </SelectTrigger>
                                       <SelectContent className="border-border/40 bg-card">
                                         {teams.map((t) => (
@@ -454,28 +455,61 @@ export function PlayersManager({ initialPlayers, teams, memberships }: Props) {
                                       </SelectContent>
                                     </Select>
                                   </div>
-                                  <div className="flex gap-2">
-                                    <Button
-                                      onClick={() => handleAssign(player.id)}
-                                      disabled={loading || !assignTeamId}
-                                      className="flex-1"
-                                    >
-                                      {loading ? "..." : "Confirmer"}
-                                    </Button>
-                                    {membership && (
-                                      <Button
-                                        variant="outline"
-                                        className="border-destructive/40 text-destructive hover:bg-destructive/10"
-                                        onClick={() => { handleRemoveFromTeam(player.id); setAssignOpen(null) }}
-                                        disabled={loading}
-                                      >
-                                        Retirer
-                                      </Button>
-                                    )}
-                                  </div>
+                                  <Button
+                                    onClick={() => handleAssign(player.id)}
+                                    disabled={loading || !assignTeamId}
+                                    className="w-full"
+                                  >
+                                    {loading ? "..." : "Confirmer l'affectation"}
+                                  </Button>
                                 </div>
                               </DialogContent>
                             </Dialog>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {membership ? (
+                            <Select
+                              defaultValue={membership.role_in_company}
+                              onValueChange={(role) => {
+                                const fd = new FormData()
+                                fd.set("userId", player.id)
+                                fd.set("teamId", membership.team_id)
+                                fd.set("roleInCompany", role)
+                                updatePlayerTeam(fd).then((r) => {
+                                  if (r.error) toast.error(r.error)
+                                  else { toast.success("Poste mis a jour"); router.refresh() }
+                                })
+                              }}
+                            >
+                              <SelectTrigger className="h-7 w-auto gap-1 border-0 bg-transparent px-2 text-xs shadow-none hover:bg-muted/30">
+                                <span className="text-xs text-muted-foreground">{COMPANY_ROLE_LABELS[membership.role_in_company]}</span>
+                              </SelectTrigger>
+                              <SelectContent className="border-border/40 bg-card">
+                                {Object.entries(COMPANY_ROLE_LABELS).map(([key, label]) => (
+                                  <SelectItem key={key} value={key} className="text-xs">{label}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            <span className="text-xs text-muted-foreground/50">---</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            {/* Remove from team */}
+                            {membership && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                                title="Retirer de l'equipe"
+                                onClick={() => handleRemoveFromTeam(player.id)}
+                                disabled={loading}
+                              >
+                                <Building2 className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
 
                             {/* Reset password */}
                             <Dialog open={resetOpen === player.id} onOpenChange={(open) => {
