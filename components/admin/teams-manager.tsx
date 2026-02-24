@@ -174,27 +174,22 @@ export function TeamsManager({ initialTeams, allProfiles }: { initialTeams: Team
     }
   }
 
-  function TeamForm({ onSubmit, submitLabel }: { onSubmit: () => void; submitLabel: string }) {
-    return (
-      <div className="space-y-4 pt-2">
-        <div className="space-y-2">
-          <Label className="text-sm text-muted-foreground">Nom de l{"'"}equipe</Label>
-          <Input value={teamName} onChange={(e) => setTeamName(e.target.value)} placeholder="Ex: Alpha Corp" className="bg-secondary/50 border-border/40" />
-        </div>
-        <div className="space-y-2">
-          <Label className="text-sm text-muted-foreground">Description</Label>
-          <Textarea value={teamDescription} onChange={(e) => setTeamDescription(e.target.value)} placeholder="Activite, secteur..." rows={2} className="bg-secondary/50 border-border/40" />
-        </div>
-        <div className="space-y-2">
-          <Label className="text-sm text-muted-foreground">Slogan</Label>
-          <Input value={teamSlogan} onChange={(e) => setTeamSlogan(e.target.value)} placeholder="Optionnel" className="bg-secondary/50 border-border/40" />
-        </div>
-        <Button onClick={onSubmit} disabled={loading || !teamName.trim()} className="w-full">
-          {loading ? "..." : submitLabel}
-        </Button>
+  const teamFormFields = (
+    <>
+      <div className="space-y-2">
+        <Label className="text-sm text-muted-foreground">Nom de l{"'"}equipe</Label>
+        <Input value={teamName} onChange={(e) => setTeamName(e.target.value)} placeholder="Ex: Alpha Corp" className="bg-secondary/50 border-border/40" />
       </div>
-    )
-  }
+      <div className="space-y-2">
+        <Label className="text-sm text-muted-foreground">Description</Label>
+        <Textarea value={teamDescription} onChange={(e) => setTeamDescription(e.target.value)} placeholder="Activite, secteur..." rows={2} className="bg-secondary/50 border-border/40" />
+      </div>
+      <div className="space-y-2">
+        <Label className="text-sm text-muted-foreground">Slogan</Label>
+        <Input value={teamSlogan} onChange={(e) => setTeamSlogan(e.target.value)} placeholder="Optionnel" className="bg-secondary/50 border-border/40" />
+      </div>
+    </>
+  )
 
   return (
     <div className="space-y-6">
@@ -220,7 +215,12 @@ export function TeamsManager({ initialTeams, allProfiles }: { initialTeams: Team
               <DialogTitle className="text-foreground">Creer une equipe</DialogTitle>
               <DialogDescription className="text-muted-foreground">Definissez le nom et les informations de la nouvelle equipe.</DialogDescription>
             </DialogHeader>
-            <TeamForm onSubmit={createTeam} submitLabel="Creer l'equipe" />
+            <div className="space-y-4 pt-2">
+              {teamFormFields}
+              <Button onClick={createTeam} disabled={loading || !teamName.trim()} className="w-full">
+                {loading ? "..." : "Creer l'equipe"}
+              </Button>
+            </div>
           </DialogContent>
         </Dialog>
       </div>
@@ -277,7 +277,12 @@ export function TeamsManager({ initialTeams, allProfiles }: { initialTeams: Team
                           <DialogHeader>
                             <DialogTitle className="text-foreground">Modifier {team.name}</DialogTitle>
                           </DialogHeader>
-                          <TeamForm onSubmit={() => updateTeam(team.id)} submitLabel="Sauvegarder" />
+                          <div className="space-y-4 pt-2">
+                            {teamFormFields}
+                            <Button onClick={() => updateTeam(team.id)} disabled={loading || !teamName.trim()} className="w-full">
+                              {loading ? "..." : "Sauvegarder"}
+                            </Button>
+                          </div>
                         </DialogContent>
                       </Dialog>
                       <Dialog open={deleteConfirm === team.id} onOpenChange={(open) => setDeleteConfirm(open ? team.id : null)}>
