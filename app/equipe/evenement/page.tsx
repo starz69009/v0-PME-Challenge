@@ -71,12 +71,14 @@ export default async function EvenementPage() {
     )
   }
 
-  const { data: decision } = await supabase
+  const { data: decision, error: decisionError } = await supabase
     .from("decisions")
     .select("*, event_options(*)")
     .eq("session_event_id", sessionEvent.id)
     .eq("team_id", membership.teams.id)
     .single()
+
+  console.log("[v0] evenement page - user:", user.id, "team:", membership.teams.id, "sessionEvent:", sessionEvent.id, "decision:", decision?.id || "NULL", "error:", decisionError?.message || "none")
 
   const { data: votes } = decision
     ? await supabase
