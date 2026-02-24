@@ -15,18 +15,20 @@ export default async function EntreprisesPage() {
     .select("*")
     .order("created_at", { ascending: false })
 
-  const { data: teams } = await supabase
-    .from("teams")
-    .select("id, name, colors_primary, entreprise_id")
-    .order("name")
+  const { data: sessions } = await supabase
+    .from("game_sessions")
+    .select("*")
+    .order("created_at", { ascending: false })
 
   return (
     <div className="flex-1 p-6 lg:p-8">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-foreground">Entreprises</h1>
-        <p className="mt-1 text-muted-foreground">Gerez les entreprises fictives de la simulation et liez-les aux equipes</p>
+        <p className="mt-1 text-muted-foreground">
+          Les entreprises sont les societes fictives utilisees dans les sessions de jeu.
+        </p>
       </div>
-      <EntreprisesManager initialEntreprises={entreprises || []} teams={teams || []} />
+      <EntreprisesManager initialEntreprises={entreprises || []} sessions={sessions || []} />
     </div>
   )
 }

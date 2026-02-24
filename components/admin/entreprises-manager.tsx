@@ -2,25 +2,19 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { createClient } from "@/lib/supabase/client"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Trash2, Building2, Pencil, Link2 } from "lucide-react"
+import { Plus, Trash2, Building2, Pencil, Eye } from "lucide-react"
+import { SESSION_STATUS_LABELS } from "@/lib/constants"
 import { toast } from "sonner"
-import type { Entreprise } from "@/lib/types"
-
-interface TeamRef {
-  id: string
-  name: string
-  colors_primary: string
-  entreprise_id: string | null
-}
+import type { Entreprise, GameSession, SessionStatus } from "@/lib/types"
 
 // Separate form dialog to avoid re-render focus loss
 function EntrepriseFormDialog({
@@ -109,14 +103,28 @@ function EntrepriseFormDialog({
   )
 }
 
-export function EntreprisesManager({ initialEntreprises, teams }: { initialEntreprises: Entreprise[]; teams: TeamRef[] }) {
+const STATUS_STYLES: Record<string, string> = {
+  setup: "border-muted-foreground/30 bg-muted-foreground/10 text-muted-foreground",
+  active: "border-[#22d3ee]/40 bg-[#22d3ee]/10 text-[#22d3ee]",
+  completed: "border-[#84cc16]/40 bg-[#84cc16]/10 text-[#84cc16]",
+}
+
+export function EntreprisesManager({
+  initialEntreprises,
+  sessions,
+}: {
+  initialEntreprises: Entreprise[]
+  sessions: GameSession[]
+}) {
   const router = useRouter()
   const [createOpen, setCreateOpen] = useState(false)
   const [editOpen, setEditOpen] = useState<string | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
-  const [linkOpen, setLinkOpen] = useState<string | null>(null)
-  const [selectedTeamId, setSelectedTeamId] = useState("")
   const [loading, setLoading] = useState(false)
+
+  function getSessionsForEntreprise(entrepriseId: string) {
+    return sessions.filter((s) => s.entreprise_id === entrepriseId)
+  }
 
   async function createEntreprise(data: { name: string; description: string; secteur: string }) {
     if (!data.name.trim()) return
@@ -170,35 +178,7 @@ export function EntreprisesManager({ initialEntreprises, teams }: { initialEntre
     setLoading(false)
   }
 
-  async function linkTeam(entrepriseId: string) {
-    if (!selectedTeamId) return
-    setLoading(true)
-    const supabase = createClient()
-    const { error } = await supabase.from("teams").update({ entreprise_id: entrepriseId }).eq("id", selectedTeamId)
-    if (error) {
-      toast.error("Erreur lors de la liaison")
-    } else {
-      toast.success("Equipe liee a l'entreprise")
-      setSelectedTeamId("")
-      setLinkOpen(null)
-      router.refresh()
-    }
-    setLoading(false)
-  }
-
-  async function unlinkTeam(teamId: string) {
-    const supabase = createClient()
-    const { error } = await supabase.from("teams").update({ entreprise_id: null }).eq("id", teamId)
-    if (error) {
-      toast.error("Erreur")
-    } else {
-      toast.success("Equipe deliee")
-      router.refresh()
-    }
-  }
-
   const editingEntreprise = editOpen ? initialEntreprises.find((e) => e.id === editOpen) : null
-  const unlinkedTeams = teams.filter((t) => !t.entreprise_id)
 
   return (
     <div className="space-y-6">
@@ -232,14 +212,9 @@ export function EntreprisesManager({ initialEntreprises, teams }: { initialEntre
 
       {/* Top bar */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
-          <Badge variant="outline" className="border-border/40 text-muted-foreground">
-            {initialEntreprises.length} entreprise{initialEntreprises.length !== 1 ? "s" : ""}
-          </Badge>
-          <Badge variant="outline" className="border-border/40 text-muted-foreground">
-            {unlinkedTeams.length} equipe{unlinkedTeams.length !== 1 ? "s" : ""} non liee{unlinkedTeams.length !== 1 ? "s" : ""}
-          </Badge>
-        </div>
+        <Badge variant="outline" className="w-fit border-border/40 text-muted-foreground">
+          {initialEntreprises.length} entreprise{initialEntreprises.length !== 1 ? "s" : ""}
+        </Badge>
         <Button onClick={() => setCreateOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
           Nouvelle entreprise
@@ -255,14 +230,14 @@ export function EntreprisesManager({ initialEntreprises, teams }: { initialEntre
             </div>
             <h3 className="text-lg font-semibold text-foreground">Aucune entreprise</h3>
             <p className="mt-2 max-w-sm text-sm text-muted-foreground">
-              Creez des entreprises fictives, puis liez-les a des equipes de joueurs.
+              Les entreprises sont les societes fictives de la simulation. Chaque session de jeu est demarree sur une entreprise.
             </p>
           </CardContent>
         </Card>
       ) : (
         <div className="grid gap-6 lg:grid-cols-2">
           {initialEntreprises.map((entreprise) => {
-            const linkedTeams = teams.filter((t) => t.entreprise_id === entreprise.id)
+            const entSessions = getSessionsForEntreprise(entreprise.id)
 
             return (
               <Card key={entreprise.id} className="relative overflow-hidden border-border/40 bg-card/60 backdrop-blur-sm">
@@ -279,7 +254,9 @@ export function EntreprisesManager({ initialEntreprises, teams }: { initialEntre
                             {entreprise.secteur}
                           </Badge>
                         )}
-                        {entreprise.description && <p className="mt-1 text-xs text-muted-foreground/60">{entreprise.description}</p>}
+                        {entreprise.description && (
+                          <p className="mt-1 text-xs text-muted-foreground/60">{entreprise.description}</p>
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center gap-1">
@@ -294,7 +271,7 @@ export function EntreprisesManager({ initialEntreprises, teams }: { initialEntre
                           <DialogHeader>
                             <DialogTitle className="text-foreground">Supprimer {entreprise.name} ?</DialogTitle>
                             <DialogDescription className="text-muted-foreground">
-                              Les equipes liees seront deliees mais pas supprimees.
+                              Les sessions utilisant cette entreprise perdront leur reference.
                             </DialogDescription>
                           </DialogHeader>
                           <DialogFooter>
@@ -308,78 +285,38 @@ export function EntreprisesManager({ initialEntreprises, teams }: { initialEntre
                 </CardHeader>
 
                 <CardContent className="space-y-3 pt-0">
-                  {/* Linked teams */}
+                  {/* Sessions using this entreprise */}
                   <div className="space-y-2">
                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      Equipes liees ({linkedTeams.length})
+                      Sessions ({entSessions.length})
                     </p>
-                    {linkedTeams.length > 0 ? (
+                    {entSessions.length > 0 ? (
                       <div className="space-y-1.5">
-                        {linkedTeams.map((t) => (
-                          <div key={t.id} className="flex items-center justify-between rounded-lg border border-border/20 bg-secondary/20 px-3 py-2">
+                        {entSessions.map((s) => (
+                          <div key={s.id} className="flex items-center justify-between rounded-lg border border-border/20 bg-secondary/20 px-3 py-2">
+                            <span className="text-sm font-medium text-foreground">{s.name}</span>
                             <div className="flex items-center gap-2">
-                              <span className="inline-block h-3 w-3 rounded-full" style={{ backgroundColor: t.colors_primary }} />
-                              <span className="text-sm font-medium text-foreground">{t.name}</span>
+                              <Badge
+                                variant="outline"
+                                className={`text-[10px] ${STATUS_STYLES[s.status as string] || STATUS_STYLES.setup}`}
+                              >
+                                {SESSION_STATUS_LABELS[s.status as SessionStatus]}
+                              </Badge>
+                              <Button asChild variant="ghost" size="sm" className="h-6 w-6 p-0 text-muted-foreground hover:text-primary">
+                                <Link href={`/admin/sessions/${s.id}`}>
+                                  <Eye className="h-3 w-3" />
+                                </Link>
+                              </Button>
                             </div>
-                            <button
-                              onClick={() => unlinkTeam(t.id)}
-                              className="text-xs text-muted-foreground/50 hover:text-destructive transition-colors"
-                            >
-                              Delier
-                            </button>
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <p className="text-xs text-muted-foreground/40 rounded-md bg-muted/20 px-3 py-2">Aucune equipe liee</p>
+                      <p className="text-xs text-muted-foreground/40 rounded-md bg-muted/20 px-3 py-2">
+                        Aucune session ne utilise cette entreprise.
+                      </p>
                     )}
                   </div>
-
-                  {/* Link team button */}
-                  {unlinkedTeams.length > 0 && (
-                    <Dialog open={linkOpen === entreprise.id} onOpenChange={(open) => { setLinkOpen(open ? entreprise.id : null); if (!open) setSelectedTeamId("") }}>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full border-dashed border-border/30 text-muted-foreground hover:border-primary/40 hover:text-primary"
-                        onClick={() => setLinkOpen(entreprise.id)}
-                      >
-                        <Link2 className="mr-2 h-3.5 w-3.5" />
-                        Lier une equipe
-                      </Button>
-                      <DialogContent className="border-border/40 bg-card">
-                        <DialogHeader>
-                          <DialogTitle className="text-foreground">Lier une equipe a {entreprise.name}</DialogTitle>
-                          <DialogDescription className="text-muted-foreground">
-                            {unlinkedTeams.length} equipe(s) disponible(s)
-                          </DialogDescription>
-                        </DialogHeader>
-                        <div className="space-y-4 pt-2">
-                          <div className="space-y-2">
-                            <Label className="text-sm text-muted-foreground">Equipe</Label>
-                            <Select value={selectedTeamId} onValueChange={setSelectedTeamId}>
-                              <SelectTrigger className="bg-secondary/50 border-border/40">
-                                <SelectValue placeholder="Selectionner une equipe" />
-                              </SelectTrigger>
-                              <SelectContent className="border-border/40 bg-card">
-                                {unlinkedTeams.map((t) => (
-                                  <SelectItem key={t.id} value={t.id}>
-                                    <div className="flex items-center gap-2">
-                                      <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: t.colors_primary }} />
-                                      {t.name}
-                                    </div>
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <Button onClick={() => linkTeam(entreprise.id)} disabled={loading || !selectedTeamId} className="w-full">
-                            {loading ? "..." : "Confirmer"}
-                          </Button>
-                        </div>
-                      </DialogContent>
-                    </Dialog>
-                  )}
                 </CardContent>
               </Card>
             )

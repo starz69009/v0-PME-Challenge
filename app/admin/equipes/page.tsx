@@ -20,13 +20,17 @@ export default async function EquipesPage() {
     .select("*")
     .eq("role", "team_member")
 
+  const { data: sessionTeams } = await supabase
+    .from("session_teams")
+    .select("*, game_sessions(id, name, status)")
+
   return (
     <div className="flex-1 p-6 lg:p-8">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-foreground">Equipes</h1>
         <p className="mt-1 text-muted-foreground">Creez des equipes, assignez des joueurs et definissez leurs postes</p>
       </div>
-      <TeamsManager initialTeams={teams || []} allProfiles={allProfiles || []} />
+      <TeamsManager initialTeams={teams || []} allProfiles={allProfiles || []} sessionTeams={sessionTeams || []} />
     </div>
   )
 }

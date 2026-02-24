@@ -31,9 +31,15 @@ export default async function SessionDetailPage({ params }: { params: Promise<{ 
     .select("*, teams(*), event_options(*)")
     .in("session_event_id", (sessionEvents || []).map((se) => se.id))
 
-  const { data: teams } = await supabase
-    .from("teams")
-    .select("*")
+  // Only get teams assigned to THIS session
+  const { data: sessionTeamLinks } = await supabase
+    .from("session_teams")
+    .select("*, teams(*)")
+    .eq("session_id", id)
+
+  const sessionTeams = (sessionTeamLinks || [])
+    .map((st) => st.teams)
+    .filter(Boolean) as any[]
 
   return (
     <div className="flex-1 p-6 lg:p-8">
@@ -41,7 +47,7 @@ export default async function SessionDetailPage({ params }: { params: Promise<{ 
         session={session}
         sessionEvents={sessionEvents || []}
         decisions={decisions || []}
-        teams={teams || []}
+        teams={sessionTeams}
       />
     </div>
   )

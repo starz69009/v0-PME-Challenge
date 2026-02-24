@@ -30,7 +30,6 @@ export interface Team {
   slogan: string | null
   colors_primary: string
   colors_secondary: string
-  entreprise_id: string | null
   created_by: string | null
   created_at: string
 }
@@ -70,13 +69,23 @@ export interface EventOption {
   created_at: string
 }
 
+export interface SessionTeam {
+  id: string
+  session_id: string
+  team_id: string
+  created_at: string
+  teams?: Team
+}
+
 export interface GameSession {
   id: string
   name: string
   status: SessionStatus
+  entreprise_id: string | null
   current_event_order: number
   created_by: string | null
   created_at: string
+  entreprises?: Entreprise | null
 }
 
 export interface SessionEvent {
