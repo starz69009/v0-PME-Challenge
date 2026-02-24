@@ -308,8 +308,22 @@ export function SessionsManager({
 
     const sTeams = getSessionTeams(triggerSessionId)
     if (sTeams.length > 0) {
-      const teamDecisions = sTeams.map((st) => ({ session_event_id: sessionEventId, team_id: st.team_id }))
-      await supabase.from("decisions").insert(teamDecisions)
+      // Check if decisions already exist for this session event (re-triggered event)
+      const { data: existingDecisions } = await supabase
+        .from("decisions")
+        .select("id")
+        .eq("session_event_id", sessionEventId)
+      
+      if (!existingDecisions || existingDecisions.length === 0) {
+        const teamDecisions = sTeams.map((st) => ({ session_event_id: sessionEventId, team_id: st.team_id, status: "pending" as const }))
+        const { error: decError } = await supabase.from("decisions").insert(teamDecisions)
+        if (decError) {
+          console.error("[v0] Failed to insert decisions:", decError)
+          toast.error("Erreur lors de la creation des decisions: " + decError.message)
+          setLoading(false)
+          return
+        }
+      }
     }
 
     await supabase.from("game_sessions").update({ current_event_order: event.sort_order }).eq("id", triggerSessionId)
