@@ -479,8 +479,8 @@ export function SessionsManager({
                     {sTeams.length > 0 && (
                       <Badge variant="outline" className="text-xs border-border/40 text-muted-foreground gap-1"><Users className="h-3 w-3" />{sTeams.length} equipe{sTeams.length > 1 ? "s" : ""}</Badge>
                     )}
-                    {sEvents.length > 0 && (
-                      <Badge variant="outline" className="text-xs border-border/40 text-muted-foreground gap-1"><Zap className="h-3 w-3" />{sEvents.length} evt</Badge>
+                    {sEvents.filter((se) => se.status !== "pending").length > 0 && (
+                      <Badge variant="outline" className="text-xs border-border/40 text-muted-foreground gap-1"><Zap className="h-3 w-3" />{sEvents.filter((se) => se.status !== "pending").length} evt</Badge>
                     )}
                     <span className="text-xs text-muted-foreground">{new Date(session.created_at).toLocaleDateString("fr-FR")}</span>
                   </div>
@@ -551,17 +551,20 @@ export function SessionsManager({
                     </div>
                   )}
 
-                  {/* Event history collapsible */}
-                  {sEvents.length > 0 && (
+                  {/* Event history collapsible - only show started events (active + resolved) */}
+                  {(() => {
+                    const startedEvents = sEvents.filter((se) => se.status === "active" || se.status === "resolved")
+                    if (startedEvents.length === 0) return null
+                    return (
                     <Collapsible open={historyOpen} onOpenChange={() => toggleHistory(session.id)}>
                       <CollapsibleTrigger asChild>
                         <button className="flex w-full items-center gap-2 rounded-lg border border-border/20 bg-muted/20 px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted/40">
                           {historyOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                          Historique des evenements ({sEvents.length})
+                          Suivi des evenements ({startedEvents.length})
                         </button>
                       </CollapsibleTrigger>
                       <CollapsibleContent className="mt-2 space-y-2">
-                        {sEvents
+                        {startedEvents
                           .sort((a, b) => a.event_order - b.event_order)
                           .map((se) => {
                             const event = se.events
@@ -588,6 +591,26 @@ export function SessionsManager({
                                     <Badge variant="outline" className={`text-[10px] ${statusStyle.className}`}>{statusStyle.label}</Badge>
                                   </div>
                                 </div>
+
+                                {/* Workflow progress summary for active events */}
+                                {se.status === "active" && eventDecisions.length > 0 && (
+                                  <div className="px-4 py-2 border-b border-border/20 bg-muted/5">
+                                    <div className="flex items-center gap-4 text-[10px]">
+                                      {(() => {
+                                        const waitingSpecialist = eventDecisions.filter((d) => d.status === "pending").length
+                                        const waitingVotes = eventDecisions.filter((d) => d.status === "proposed" || (d.status === "voting" && !d.dg_validated)).length
+                                        const validated = eventDecisions.filter((d) => d.status === "validated" || d.dg_validated).length
+                                        return (
+                                          <>
+                                            {waitingSpecialist > 0 && <span className="text-muted-foreground"><Clock className="inline h-3 w-3 mr-0.5" />{waitingSpecialist} en attente specialiste</span>}
+                                            {waitingVotes > 0 && <span className="text-[#f59e0b]"><Timer className="inline h-3 w-3 mr-0.5" />{waitingVotes} vote/DG en cours</span>}
+                                            {validated > 0 && <span className="text-[#84cc16]"><CheckCircle2 className="inline h-3 w-3 mr-0.5" />{validated} validee{validated > 1 ? "s" : ""}</span>}
+                                          </>
+                                        )
+                                      })()}
+                                    </div>
+                                  </div>
+                                )}
 
                                 {/* Team decisions */}
                                 {eventDecisions.length > 0 && (
@@ -725,7 +748,8 @@ export function SessionsManager({
                         }
                       </CollapsibleContent>
                     </Collapsible>
-                  )}
+                    )
+                  })()}
                 </CardContent>
               </Card>
             )
