@@ -1,5 +1,5 @@
 export type UserRole = 'admin' | 'team_member'
-export type CompanyRole = 'dg' | 'commercial' | 'rh' | 'production' | 'finance' | 'collaborateur'
+export type CompanyRole = 'dg' | 'commercial' | 'rh' | 'production' | 'finance'
 export type SessionStatus = 'setup' | 'active' | 'completed'
 export type EventStatus = 'pending' | 'active' | 'resolved'
 export type DecisionStatus = 'pending' | 'proposed' | 'voting' | 'validated' | 'rejected'
