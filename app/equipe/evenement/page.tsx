@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic"
 
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { DecisionFlow } from "@/components/team/decision-flow"
 import { Zap, Clock } from "lucide-react"
 
@@ -10,12 +11,22 @@ export const metadata = {
 }
 
 export default async function EvenementPage() {
+  // Auth via cookie client
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/auth/login")
 
+  // All DB reads via admin client (bypasses RLS for reliability)
+  let db: ReturnType<typeof createAdminClient>
+  try {
+    db = createAdminClient()
+  } catch {
+    // Fallback to cookie client
+    db = supabase as any
+  }
+
   // Get user's team membership
-  const { data: memberships } = await supabase
+  const { data: memberships } = await db
     .from("team_members")
     .select("*, teams(*)")
     .eq("user_id", user.id)
@@ -25,7 +36,7 @@ export default async function EvenementPage() {
   if (!membership?.teams) redirect("/equipe")
 
   // Get active game session
-  const { data: activeSessions } = await supabase
+  const { data: activeSessions } = await db
     .from("game_sessions")
     .select("*")
     .eq("status", "active")
@@ -51,7 +62,7 @@ export default async function EvenementPage() {
   }
 
   // Get active session event
-  const { data: sessionEvents } = await supabase
+  const { data: sessionEvents } = await db
     .from("session_events")
     .select("*, events(*, event_options(*))")
     .eq("session_id", activeSession.id)
@@ -79,7 +90,7 @@ export default async function EvenementPage() {
   }
 
   // Get team members for role display
-  const { data: teamMembers } = await supabase
+  const { data: teamMembers } = await db
     .from("team_members")
     .select("*, profiles(id, email, display_name)")
     .eq("team_id", membership.teams.id)
