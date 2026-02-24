@@ -22,7 +22,7 @@ import type { Profile } from "@/lib/types"
 const navItems = [
   { href: "/admin", label: "Tableau de bord", icon: LayoutDashboard },
   { href: "/admin/joueurs", label: "Joueurs", icon: UserPlus },
-  { href: "/admin/entreprises", label: "Entreprises", icon: Users },
+  { href: "/admin/equipes", label: "Equipes", icon: Users },
   { href: "/admin/sessions", label: "Sessions", icon: Play },
   { href: "/admin/evenements", label: "Evenements", icon: CalendarDays },
   { href: "/admin/classement", label: "Classement", icon: Trophy },

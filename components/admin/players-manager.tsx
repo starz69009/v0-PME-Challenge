@@ -60,11 +60,11 @@ export function PlayersManager({ initialPlayers, teams, memberships }: Props) {
   const [newPassword, setNewPassword] = useState("")
   const [newName, setNewName] = useState("")
   const [newTeamId, setNewTeamId] = useState("")
-  const [newRole, setNewRole] = useState<CompanyRole>("collaborateur")
+  const [newRole, setNewRole] = useState<CompanyRole>("dg")
 
   // Assign form state
   const [assignTeamId, setAssignTeamId] = useState("")
-  const [assignRole, setAssignRole] = useState<CompanyRole>("collaborateur")
+  const [assignRole, setAssignRole] = useState<CompanyRole>("dg")
 
   // Reset password state
   const [newResetPassword, setNewResetPassword] = useState("")
@@ -109,7 +109,7 @@ export function PlayersManager({ initialPlayers, teams, memberships }: Props) {
       setNewPassword("")
       setNewName("")
       setNewTeamId("")
-      setNewRole("collaborateur")
+      setNewRole("dg")
       setCreateOpen(false)
       router.refresh()
     }
@@ -142,7 +142,7 @@ export function PlayersManager({ initialPlayers, teams, memberships }: Props) {
       toast.success("Affectation mise a jour")
       setAssignOpen(null)
       setAssignTeamId("")
-      setAssignRole("collaborateur")
+      setAssignRole("dg")
       router.refresh()
     }
     setLoading(false)
@@ -410,7 +410,7 @@ export function PlayersManager({ initialPlayers, teams, memberships }: Props) {
                                 setAssignRole(membership.role_in_company)
                               } else if (open) {
                                 setAssignTeamId("")
-                                setAssignRole("collaborateur")
+                                setAssignRole("dg")
                               }
                             }}>
                               <DialogTrigger asChild>

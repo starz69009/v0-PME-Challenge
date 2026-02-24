@@ -22,7 +22,6 @@ export const COMPANY_ROLE_LABELS: Record<CompanyRole, string> = {
   rh: 'Responsable RH',
   production: 'Responsable Production',
   finance: 'Responsable Finance',
-  collaborateur: 'Collaborateur',
 }
 
 export const SCORE_FIELDS = [
