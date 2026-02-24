@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase/server"
 import { RankingsView } from "@/components/admin/rankings-view"
 
+export const dynamic = "force-dynamic"
+
 export const metadata = {
   title: "Classement",
 }

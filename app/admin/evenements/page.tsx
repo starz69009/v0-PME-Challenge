@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase/server"
 import { EventsEditor } from "@/components/admin/events-editor"
 
+export const dynamic = "force-dynamic"
+
 export const metadata = {
   title: "Evenements",
 }

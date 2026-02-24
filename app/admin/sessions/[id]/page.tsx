@@ -2,6 +2,8 @@ import { createClient } from "@/lib/supabase/server"
 import { notFound } from "next/navigation"
 import { SessionDetail } from "@/components/admin/session-detail"
 
+export const dynamic = "force-dynamic"
+
 export const metadata = {
   title: "Detail de la session",
 }

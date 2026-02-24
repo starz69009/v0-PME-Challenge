@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase/server"
 import { TeamsManager } from "@/components/admin/teams-manager"
 
+export const dynamic = "force-dynamic"
+
 export const metadata = {
   title: "Entreprises",
 }

@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase/server"
 import { SessionsManager } from "@/components/admin/sessions-manager"
 
+export const dynamic = "force-dynamic"
+
 export const metadata = {
   title: "Sessions",
 }
