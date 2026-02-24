@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -26,6 +26,99 @@ const ROLE_ICONS: Record<CompanyRole, React.ElementType> = {
 
 const ROLE_ORDER: CompanyRole[] = ["dg", "commercial", "rh", "production", "finance"]
 
+// ── Separate component with its OWN state so typing never causes parent re-render ──
+function TeamFormDialog({
+  open,
+  onOpenChange,
+  title,
+  description,
+  submitLabel,
+  initialName,
+  initialDescription,
+  initialSlogan,
+  onSubmit,
+  loading,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  title: string
+  description?: string
+  submitLabel: string
+  initialName: string
+  initialDescription: string
+  initialSlogan: string
+  onSubmit: (data: { name: string; description: string; slogan: string }) => void
+  loading: boolean
+}) {
+  const [name, setName] = useState(initialName)
+  const [desc, setDesc] = useState(initialDescription)
+  const [slogan, setSlogan] = useState(initialSlogan)
+
+  // Reset local state when dialog opens with new values
+  const handleOpenChange = (isOpen: boolean) => {
+    if (isOpen) {
+      setName(initialName)
+      setDesc(initialDescription)
+      setSlogan(initialSlogan)
+    }
+    onOpenChange(isOpen)
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="border-border/40 bg-card">
+        <DialogHeader>
+          <DialogTitle className="text-foreground">{title}</DialogTitle>
+          {description && <DialogDescription className="text-muted-foreground">{description}</DialogDescription>}
+        </DialogHeader>
+        <div className="space-y-4 pt-2">
+          <div className="space-y-2">
+            <Label htmlFor="team-name" className="text-sm text-muted-foreground">Nom de l{"'"}equipe</Label>
+            <Input
+              id="team-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Ex: Alpha Corp"
+              className="bg-secondary/50 border-border/40"
+              autoFocus
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="team-desc" className="text-sm text-muted-foreground">Description</Label>
+            <Textarea
+              id="team-desc"
+              value={desc}
+              onChange={(e) => setDesc(e.target.value)}
+              placeholder="Activite, secteur..."
+              rows={2}
+              className="bg-secondary/50 border-border/40"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="team-slogan" className="text-sm text-muted-foreground">Slogan</Label>
+            <Input
+              id="team-slogan"
+              value={slogan}
+              onChange={(e) => setSlogan(e.target.value)}
+              placeholder="Optionnel"
+              className="bg-secondary/50 border-border/40"
+            />
+          </div>
+          <Button
+            onClick={() => onSubmit({ name, description: desc, slogan })}
+            disabled={loading || !name.trim()}
+            className="w-full"
+          >
+            {loading ? "..." : submitLabel}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ── Main component ──────────────────────────────────────────────────────────────
+
 interface TeamWithMembers {
   id: string
   name: string
@@ -50,11 +143,6 @@ export function TeamsManager({ initialTeams, allProfiles }: { initialTeams: Team
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  // Create / Edit form
-  const [teamName, setTeamName] = useState("")
-  const [teamDescription, setTeamDescription] = useState("")
-  const [teamSlogan, setTeamSlogan] = useState("")
-
   // Add member form
   const [selectedUser, setSelectedUser] = useState("")
   const [selectedRole, setSelectedRole] = useState<CompanyRole>("dg")
@@ -62,55 +150,40 @@ export function TeamsManager({ initialTeams, allProfiles }: { initialTeams: Team
   const assignedUserIds = new Set(initialTeams.flatMap((t) => t.team_members.map((m) => m.user_id)))
   const unassignedPlayers = allProfiles.filter((p) => !assignedUserIds.has(p.id))
 
-  function openEdit(team: TeamWithMembers) {
-    setTeamName(team.name)
-    setTeamDescription(team.description || "")
-    setTeamSlogan(team.slogan || "")
-    setEditOpen(team.id)
-  }
-
-  function resetForm() {
-    setTeamName("")
-    setTeamDescription("")
-    setTeamSlogan("")
-  }
-
-  async function createTeam() {
-    if (!teamName.trim()) return
+  async function createTeam(data: { name: string; description: string; slogan: string }) {
+    if (!data.name.trim()) return
     setLoading(true)
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     const { error } = await supabase.from("teams").insert({
-      name: teamName,
-      description: teamDescription || null,
-      slogan: teamSlogan || null,
+      name: data.name,
+      description: data.description || null,
+      slogan: data.slogan || null,
       created_by: user?.id,
     })
     if (error) {
       toast.error("Erreur lors de la creation")
     } else {
       toast.success("Equipe creee")
-      resetForm()
       setCreateOpen(false)
       router.refresh()
     }
     setLoading(false)
   }
 
-  async function updateTeam(teamId: string) {
-    if (!teamName.trim()) return
+  async function updateTeam(teamId: string, data: { name: string; description: string; slogan: string }) {
+    if (!data.name.trim()) return
     setLoading(true)
     const supabase = createClient()
     const { error } = await supabase.from("teams").update({
-      name: teamName,
-      description: teamDescription || null,
-      slogan: teamSlogan || null,
+      name: data.name,
+      description: data.description || null,
+      slogan: data.slogan || null,
     }).eq("id", teamId)
     if (error) {
       toast.error("Erreur lors de la mise a jour")
     } else {
       toast.success("Equipe mise a jour")
-      resetForm()
       setEditOpen(null)
       router.refresh()
     }
@@ -174,25 +247,39 @@ export function TeamsManager({ initialTeams, allProfiles }: { initialTeams: Team
     }
   }
 
-  const teamFormFields = (
-    <>
-      <div className="space-y-2">
-        <Label className="text-sm text-muted-foreground">Nom de l{"'"}equipe</Label>
-        <Input value={teamName} onChange={(e) => setTeamName(e.target.value)} placeholder="Ex: Alpha Corp" className="bg-secondary/50 border-border/40" />
-      </div>
-      <div className="space-y-2">
-        <Label className="text-sm text-muted-foreground">Description</Label>
-        <Textarea value={teamDescription} onChange={(e) => setTeamDescription(e.target.value)} placeholder="Activite, secteur..." rows={2} className="bg-secondary/50 border-border/40" />
-      </div>
-      <div className="space-y-2">
-        <Label className="text-sm text-muted-foreground">Slogan</Label>
-        <Input value={teamSlogan} onChange={(e) => setTeamSlogan(e.target.value)} placeholder="Optionnel" className="bg-secondary/50 border-border/40" />
-      </div>
-    </>
-  )
+  const editingTeam = editOpen ? initialTeams.find((t) => t.id === editOpen) : null
 
   return (
     <div className="space-y-6">
+      {/* Create dialog */}
+      <TeamFormDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        title="Creer une equipe"
+        description="Definissez le nom et les informations de la nouvelle equipe."
+        submitLabel="Creer l'equipe"
+        initialName=""
+        initialDescription=""
+        initialSlogan=""
+        onSubmit={createTeam}
+        loading={loading}
+      />
+
+      {/* Edit dialog */}
+      {editingTeam && (
+        <TeamFormDialog
+          open={true}
+          onOpenChange={(open) => { if (!open) setEditOpen(null) }}
+          title={`Modifier ${editingTeam.name}`}
+          submitLabel="Sauvegarder"
+          initialName={editingTeam.name}
+          initialDescription={editingTeam.description || ""}
+          initialSlogan={editingTeam.slogan || ""}
+          onSubmit={(data) => updateTeam(editingTeam.id, data)}
+          loading={loading}
+        />
+      )}
+
       {/* Top bar */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
@@ -203,26 +290,10 @@ export function TeamsManager({ initialTeams, allProfiles }: { initialTeams: Team
             {unassignedPlayers.length} joueur{unassignedPlayers.length !== 1 ? "s" : ""} non assigne{unassignedPlayers.length !== 1 ? "s" : ""}
           </Badge>
         </div>
-        <Dialog open={createOpen} onOpenChange={(open) => { setCreateOpen(open); if (!open) resetForm() }}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Nouvelle equipe
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="border-border/40 bg-card">
-            <DialogHeader>
-              <DialogTitle className="text-foreground">Creer une equipe</DialogTitle>
-              <DialogDescription className="text-muted-foreground">Definissez le nom et les informations de la nouvelle equipe.</DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 pt-2">
-              {teamFormFields}
-              <Button onClick={createTeam} disabled={loading || !teamName.trim()} className="w-full">
-                {loading ? "..." : "Creer l'equipe"}
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <Button onClick={() => setCreateOpen(true)}>
+          <Plus className="mr-2 h-4 w-4" />
+          Nouvelle equipe
+        </Button>
       </div>
 
       {/* Empty state */}
@@ -267,24 +338,9 @@ export function TeamsManager({ initialTeams, allProfiles }: { initialTeams: Team
                       <Badge variant="outline" className="border-border/40 text-muted-foreground tabular-nums">
                         {team.team_members.length} joueur{team.team_members.length !== 1 ? "s" : ""}
                       </Badge>
-                      <Dialog open={editOpen === team.id} onOpenChange={(open) => { if (open) openEdit(team); else { setEditOpen(null); resetForm() } }}>
-                        <DialogTrigger asChild>
-                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground hover:text-primary">
-                            <Pencil className="h-3.5 w-3.5" />
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="border-border/40 bg-card">
-                          <DialogHeader>
-                            <DialogTitle className="text-foreground">Modifier {team.name}</DialogTitle>
-                          </DialogHeader>
-                          <div className="space-y-4 pt-2">
-                            {teamFormFields}
-                            <Button onClick={() => updateTeam(team.id)} disabled={loading || !teamName.trim()} className="w-full">
-                              {loading ? "..." : "Sauvegarder"}
-                            </Button>
-                          </div>
-                        </DialogContent>
-                      </Dialog>
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground hover:text-primary" onClick={() => setEditOpen(team.id)}>
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
                       <Dialog open={deleteConfirm === team.id} onOpenChange={(open) => setDeleteConfirm(open ? team.id : null)}>
                         <DialogTrigger asChild>
                           <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive/60 hover:text-destructive">
