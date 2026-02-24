@@ -88,6 +88,7 @@ export function DecisionFlow({
   const [votes, setVotes] = useState(initialVotes)
   const [loading, setLoading] = useState(false)
   const [selectedOption, setSelectedOption] = useState<string | null>(null)
+  const [proposalSubmitted, setProposalSubmitted] = useState(false)
   // Specialist argumentaire (step 1)
   const [specAvantages, setSpecAvantages] = useState(initialDecision?.comment_avantages || "")
   const [specInconvenients, setSpecInconvenients] = useState(initialDecision?.comment_inconvenients || "")
@@ -163,6 +164,7 @@ export function DecisionFlow({
       return
     }
     setLoading(true)
+    setProposalSubmitted(true)
     const supabase = createClient()
     const { error } = await supabase
       .from("decisions")
@@ -175,8 +177,13 @@ export function DecisionFlow({
         comment_justification: specJustification,
       })
       .eq("id", decision.id)
-    if (error) toast.error("Erreur lors de la proposition")
-    else { toast.success("Option proposee. Les autres membres peuvent maintenant voter."); await refreshData() }
+    if (error) {
+      toast.error("Erreur lors de la proposition")
+      setProposalSubmitted(false)
+    } else {
+      toast.success("Option proposee. Les autres membres peuvent maintenant voter.")
+      await refreshData()
+    }
     setLoading(false)
   }
 
@@ -336,7 +343,7 @@ export function DecisionFlow({
       {/* ===== STEP 1: SPECIALIST PROPOSES ===== */}
       {status === "pending" && (
         <>
-          {isSpecialist ? (
+          {isSpecialist && !proposalSubmitted ? (
             <Card className="border-primary/30 bg-primary/5">
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-bold flex items-center gap-2">
@@ -344,7 +351,7 @@ export function DecisionFlow({
                   {"C'est a vous de proposer une solution"}
                 </CardTitle>
                 <CardDescription className="text-xs">
-                  En tant que <span className="font-semibold text-foreground">{COMPANY_ROLE_LABELS[specialistRole]}</span>, vous etes le specialiste de cet evenement. Selectionnez une option et argumentez votre choix.
+                  En tant que <span className="font-semibold text-foreground">{COMPANY_ROLE_LABELS[specialistRole]}</span>, vous etes le specialiste de cet evenement. Selectionnez une option et argumentez votre choix. <span className="font-semibold text-foreground">Attention, votre choix sera definitif.</span>
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -353,7 +360,7 @@ export function DecisionFlow({
                   {options.map((option: any) => (
                     <div
                       key={option.id}
-                      onClick={() => !isLocked && setSelectedOption(option.id)}
+                      onClick={() => !isLocked && !loading && setSelectedOption(option.id)}
                       className={`cursor-pointer rounded-lg border p-3 transition-all ${
                         selectedOption === option.id
                           ? "border-primary/50 bg-primary/10 ring-2 ring-primary/20"
@@ -409,6 +416,18 @@ export function DecisionFlow({
                     </Button>
                   </div>
                 )}
+              </CardContent>
+            </Card>
+          ) : isSpecialist && proposalSubmitted ? (
+            <Card className="border-success/30 bg-success/5">
+              <CardContent className="flex items-center gap-4 p-6">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-success/15">
+                  <CheckCircle className="h-5 w-5 text-success" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-foreground">Proposition envoyee</p>
+                  <p className="text-xs text-muted-foreground">{"Votre choix est definitif. L'equipe va maintenant voter sur votre proposition."}</p>
+                </div>
               </CardContent>
             </Card>
           ) : (
