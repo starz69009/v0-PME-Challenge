@@ -98,6 +98,7 @@ export interface SessionEvent {
   resolved_at: string | null
   duration_seconds: number | null
   expires_at: string | null
+  scored: boolean
   created_at: string
   events?: GameEvent
 }
@@ -112,6 +113,7 @@ export interface Decision {
   dg_validated: boolean
   dg_validated_by: string | null
   dg_validated_at: string | null
+  admin_comment: string | null
   created_at: string
   event_options?: EventOption
   teams?: Team

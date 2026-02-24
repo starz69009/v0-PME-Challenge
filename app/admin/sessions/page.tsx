@@ -33,6 +33,19 @@ export default async function SessionsPage() {
     .from("session_teams")
     .select("*, teams(*)")
 
+  const { data: sessionEvents } = await supabase
+    .from("session_events")
+    .select("*, events(*, event_options(*))")
+    .order("event_order", { ascending: true })
+
+  const { data: decisions } = await supabase
+    .from("decisions")
+    .select("*, teams(*), event_options(*)")
+
+  const { data: teamScores } = await supabase
+    .from("team_scores")
+    .select("*")
+
   return (
     <div className="flex-1 p-6 lg:p-8">
       <div className="mb-8">
@@ -45,6 +58,9 @@ export default async function SessionsPage() {
         teams={teams || []}
         entreprises={entreprises || []}
         sessionTeams={sessionTeams || []}
+        sessionEvents={sessionEvents || []}
+        decisions={decisions || []}
+        teamScores={teamScores || []}
       />
     </div>
   )
