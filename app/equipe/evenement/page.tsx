@@ -75,14 +75,12 @@ export default async function EvenementPage() {
     )
   }
 
-  const { data: decisions, error: decError } = await supabase
+  const { data: decisions } = await supabase
     .from("decisions")
     .select("*, event_options(*)")
     .eq("session_event_id", sessionEvent.id)
     .eq("team_id", membership.teams.id)
     .limit(1)
-
-  console.log("[v0] SSR decisions query - sessionEvent.id:", sessionEvent.id, "team_id:", membership.teams.id, "results:", decisions?.length, "error:", decError?.message || "none", "first:", decisions?.[0]?.id || "NULL")
 
   const decision = decisions?.[0] || null
 
