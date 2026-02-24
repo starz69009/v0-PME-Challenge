@@ -207,8 +207,8 @@ export function PlayersManager({ initialPlayers, entreprises, teams, memberships
     return pwd
   }
 
-  // Entreprise > Equipe > Poste selector component
-  function EntrepriseTeamRoleSelector({
+  // Equipe + Poste selector (with optional Entreprise grouping)
+  function TeamRoleSelector({
     entrepriseId,
     setEntrepriseId,
     teamId,
@@ -225,38 +225,52 @@ export function PlayersManager({ initialPlayers, entreprises, teams, memberships
     setRole: (v: CompanyRole) => void
     optional?: boolean
   }) {
-    const filteredTeams = entrepriseId ? getTeamsForEntreprise(entrepriseId) : []
+    const hasEntreprises = entreprises.length > 0
+    // If entreprises exist, filter teams by selected entreprise. Otherwise show all teams.
+    const availableTeams = hasEntreprises && entrepriseId
+      ? getTeamsForEntreprise(entrepriseId)
+      : !hasEntreprises
+        ? teams
+        : []
 
     return (
       <div className="rounded-lg border border-border/30 bg-muted/20 p-4 space-y-3">
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
           Affectation{optional ? " (optionnel)" : ""}
         </p>
-        <div className="space-y-2">
-          <Label className="text-sm text-muted-foreground">Entreprise</Label>
-          <Select value={entrepriseId} onValueChange={(v) => {
-            setEntrepriseId(v)
-            setTeamId("") // reset team when entreprise changes
-          }}>
-            <SelectTrigger className="bg-secondary/50 border-border/40">
-              <SelectValue placeholder={optional ? "Aucune pour le moment" : "Selectionner une entreprise"} />
-            </SelectTrigger>
-            <SelectContent className="border-border/40 bg-card">
-              {entreprises.map((e) => (
-                <SelectItem key={e.id} value={e.id}>
-                  {e.name}
-                  {e.secteur && <span className="ml-1 text-muted-foreground">({e.secteur})</span>}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        {entrepriseId && (
+
+        {/* Only show Entreprise select if entreprises exist */}
+        {hasEntreprises && (
+          <div className="space-y-2">
+            <Label className="text-sm text-muted-foreground">Entreprise</Label>
+            <Select value={entrepriseId} onValueChange={(v) => {
+              setEntrepriseId(v)
+              setTeamId("")
+            }}>
+              <SelectTrigger className="bg-secondary/50 border-border/40">
+                <SelectValue placeholder={optional ? "Aucune pour le moment" : "Selectionner une entreprise"} />
+              </SelectTrigger>
+              <SelectContent className="border-border/40 bg-card">
+                {entreprises.map((e) => (
+                  <SelectItem key={e.id} value={e.id}>
+                    {e.name}
+                    {e.secteur && <span className="ml-1 text-muted-foreground">({e.secteur})</span>}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        {/* Show team select: always if no entreprises, or after entreprise selected */}
+        {(!hasEntreprises || entrepriseId) && (
           <div className="space-y-2">
             <Label className="text-sm text-muted-foreground">Equipe</Label>
-            {filteredTeams.length === 0 ? (
+            {availableTeams.length === 0 ? (
               <p className="text-xs text-muted-foreground/60 rounded-md bg-muted/30 px-3 py-2">
-                Aucune equipe dans cette entreprise. Creez-en une dans la page Equipes.
+                {hasEntreprises
+                  ? "Aucune equipe dans cette entreprise. Creez-en une dans la page Equipes."
+                  : "Aucune equipe disponible. Creez-en une dans la page Equipes."}
               </p>
             ) : (
               <Select value={teamId} onValueChange={setTeamId}>
@@ -264,7 +278,7 @@ export function PlayersManager({ initialPlayers, entreprises, teams, memberships
                   <SelectValue placeholder="Selectionner une equipe" />
                 </SelectTrigger>
                 <SelectContent className="border-border/40 bg-card">
-                  {filteredTeams.map((t) => (
+                  {availableTeams.map((t) => (
                     <SelectItem key={t.id} value={t.id}>
                       <div className="flex items-center gap-2">
                         <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: t.colors_primary }} />
@@ -277,6 +291,7 @@ export function PlayersManager({ initialPlayers, entreprises, teams, memberships
             )}
           </div>
         )}
+
         {teamId && (
           <div className="space-y-2">
             <Label className="text-sm text-muted-foreground">Poste</Label>
@@ -372,7 +387,7 @@ export function PlayersManager({ initialPlayers, entreprises, teams, memberships
                   </div>
                 </div>
 
-                <EntrepriseTeamRoleSelector
+                <TeamRoleSelector
                   entrepriseId={newEntrepriseId}
                   setEntrepriseId={setNewEntrepriseId}
                   teamId={newTeamId}
@@ -546,7 +561,7 @@ export function PlayersManager({ initialPlayers, entreprises, teams, memberships
                                       Choisissez l{"'"}entreprise, l{"'"}equipe et le poste du joueur.
                                     </DialogDescription>
                                   </DialogHeader>
-                                  <EntrepriseTeamRoleSelector
+                                  <TeamRoleSelector
                                     entrepriseId={assignEntrepriseId}
                                     setEntrepriseId={setAssignEntrepriseId}
                                     teamId={assignTeamId}
