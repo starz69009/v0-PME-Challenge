@@ -10,15 +10,19 @@ export const metadata = {
 export default async function EquipesPage() {
   const supabase = await createClient()
 
-  const { data: teams } = await supabase
+  const { data: teams, error: teamsErr } = await supabase
     .from("teams")
     .select("*, team_members(*, profiles(*))")
     .order("created_at", { ascending: false })
 
-  const { data: allProfiles } = await supabase
+  console.log("[v0] equipes page - teams:", JSON.stringify(teams?.length), "error:", JSON.stringify(teamsErr))
+
+  const { data: allProfiles, error: profilesErr } = await supabase
     .from("profiles")
     .select("*")
     .eq("role", "team_member")
+
+  console.log("[v0] equipes page - profiles:", JSON.stringify(allProfiles?.length), "error:", JSON.stringify(profilesErr))
 
   return (
     <div className="flex-1 p-6 lg:p-8">
