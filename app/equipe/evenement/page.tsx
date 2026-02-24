@@ -14,20 +14,23 @@ export default async function EvenementPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/auth/login")
 
-  const { data: membership } = await supabase
+  const { data: memberships } = await supabase
     .from("team_members")
     .select("*, teams(*)")
     .eq("user_id", user.id)
-    .single()
+    .limit(1)
+
+  const membership = memberships?.[0]
 
   if (!membership?.teams) redirect("/equipe")
 
-  const { data: activeSession } = await supabase
+  const { data: activeSessions } = await supabase
     .from("game_sessions")
     .select("*")
     .eq("status", "active")
     .limit(1)
-    .single()
+
+  const activeSession = activeSessions?.[0] || null
 
   if (!activeSession) {
     return (
@@ -46,13 +49,14 @@ export default async function EvenementPage() {
     )
   }
 
-  const { data: sessionEvent } = await supabase
+  const { data: sessionEvents } = await supabase
     .from("session_events")
     .select("*, events(*, event_options(*))")
     .eq("session_id", activeSession.id)
     .eq("status", "active")
     .limit(1)
-    .single()
+
+  const sessionEvent = sessionEvents?.[0] || null
 
   if (!sessionEvent) {
     return (
@@ -71,14 +75,14 @@ export default async function EvenementPage() {
     )
   }
 
-  const { data: decision, error: decisionError } = await supabase
+  const { data: decisions } = await supabase
     .from("decisions")
     .select("*, event_options(*)")
     .eq("session_event_id", sessionEvent.id)
     .eq("team_id", membership.teams.id)
-    .single()
+    .limit(1)
 
-  console.log("[v0] evenement page - user:", user.id, "team:", membership.teams.id, "sessionEvent:", sessionEvent.id, "decision:", decision?.id || "NULL", "error:", decisionError?.message || "none")
+  const decision = decisions?.[0] || null
 
   const { data: votes } = decision
     ? await supabase
