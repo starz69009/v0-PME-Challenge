@@ -88,6 +88,7 @@ export function SessionsManager({
   teamScores: TeamScore[]
 }) {
   const router = useRouter()
+  const [sessions, setSessions] = useState(initialSessions)
   const [createOpen, setCreateOpen] = useState(false)
   const [sessionName, setSessionName] = useState("")
   const [selectedEntrepriseId, setSelectedEntrepriseId] = useState("")
@@ -224,7 +225,10 @@ export function SessionsManager({
     const supabase = createClient()
     const { error } = await supabase.from("game_sessions").delete().eq("id", id)
     if (error) toast.error("Erreur lors de la suppression")
-    else toast.success("Session supprimee")
+    else {
+      toast.success("Session supprimee")
+      setSessions((prev) => prev.filter((s) => s.id !== id))
+    }
     router.refresh()
     setLoading(false)
   }
@@ -413,7 +417,7 @@ export function SessionsManager({
       </div>
 
       {/* Sessions list */}
-      {initialSessions.length === 0 ? (
+      {sessions.length === 0 ? (
         <Card className="border-dashed border-border/30 bg-card/40">
           <CardContent className="flex flex-col items-center justify-center p-16 text-center">
             <div className="mb-4 rounded-2xl bg-muted/30 p-4"><Zap className="h-10 w-10 text-muted-foreground/40" /></div>
@@ -423,7 +427,7 @@ export function SessionsManager({
         </Card>
       ) : (
         <div className="space-y-4">
-          {initialSessions.map((session) => {
+          {sessions.map((session) => {
             const sTeams = getSessionTeams(session.id)
             const sEvents = getSessionEvents(session.id)
             const isActive = session.status === "active"
