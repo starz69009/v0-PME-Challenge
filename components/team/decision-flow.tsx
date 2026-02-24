@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { CheckCircle, ShieldCheck, Clock, User, ThumbsUp, ThumbsDown, Timer, AlertTriangle, MessageSquare, ChevronDown, ChevronUp } from "lucide-react"
 import { COMPANY_ROLE_LABELS, DECISION_STATUS_LABELS, CATEGORY_SPECIALIST_ROLE } from "@/lib/constants"
+import { proposeOptionAction, castVoteAction, validateDecisionAction } from "@/app/equipe/evenement/actions"
 import { toast } from "sonner"
 import type { CompanyRole, DecisionStatus, EventCategory } from "@/lib/types"
 
@@ -88,13 +89,6 @@ export function DecisionFlow({
   const [votes, setVotes] = useState(initialVotes)
   const [loading, setLoading] = useState(false)
 
-  useEffect(() => {
-    console.log("[v0] DecisionFlow mounted - initialDecision:", initialDecision?.id || "NULL", "status:", initialDecision?.status, "decision state:", decision?.id || "NULL")
-  }, [])
-
-  useEffect(() => {
-    console.log("[v0] Decision state changed:", decision?.id || "NULL", "status:", decision?.status)
-  }, [decision])
   const [selectedOption, setSelectedOption] = useState<string | null>(null)
   const [proposalSubmitted, setProposalSubmitted] = useState(false)
   // Specialist argumentaire (step 1)
@@ -165,7 +159,6 @@ export function DecisionFlow({
         .eq("team_id", teamId)
         .single()
       if (foundDecision) {
-        console.log("[v0] Found decision that was missing at load:", foundDecision.id)
         setDecision(foundDecision)
       }
     }
@@ -176,7 +169,7 @@ export function DecisionFlow({
     return () => clearInterval(interval)
   }, [refreshData])
 
-  // STEP 1: Specialist proposes an option with argumentaire
+  // STEP 1: Specialist proposes an option with argumentaire (via Server Action)
   async function proposeOption(optionId: string) {
     if (isLocked) { toast.error("Le temps est ecoule"); return }
     if (!decision?.id) { toast.error("Decision non trouvee. Veuillez rafraichir la page."); return }
@@ -186,28 +179,9 @@ export function DecisionFlow({
     }
     setLoading(true)
     setProposalSubmitted(true)
-    const supabase = createClient()
-    console.log("[v0] proposeOption called - decision.id:", decision.id, "optionId:", optionId, "userId:", currentUserId)
-    const { error, data } = await supabase
-      .from("decisions")
-      .update({
-        proposed_option_id: optionId,
-        proposed_by: currentUserId,
-        status: "voting",
-        comment_avantages: specAvantages,
-        comment_inconvenients: specInconvenients,
-        comment_justification: specJustification,
-      })
-      .eq("id", decision.id)
-      .select()
-    console.log("[v0] proposeOption result - error:", error, "data:", data)
-    if (error) {
-      console.error("[v0] proposeOption error:", error)
-      toast.error("Erreur lors de la proposition: " + error.message)
-      setProposalSubmitted(false)
-    } else if (!data || data.length === 0) {
-      console.error("[v0] proposeOption: RLS blocked update - 0 rows returned")
-      toast.error("Vous n'avez pas la permission de modifier cette decision. Verifiez votre role.")
+    const result = await proposeOptionAction(decision.id, optionId, specAvantages, specInconvenients, specJustification)
+    if (result.error) {
+      toast.error("Erreur: " + result.error)
       setProposalSubmitted(false)
     } else {
       toast.success("Option proposee. Les autres membres peuvent maintenant voter.")
@@ -216,23 +190,16 @@ export function DecisionFlow({
     setLoading(false)
   }
 
-  // STEP 2: Other members approve/reject with role-specific comment
+  // STEP 2: Other members approve/reject with role-specific comment (via Server Action)
   async function castVote() {
     if (isLocked) { toast.error("Le temps est ecoule"); return }
     if (!decision?.id) { toast.error("Decision non trouvee. Veuillez rafraichir la page."); return }
     if (voteApproved === null) { toast.error("Veuillez approuver ou rejeter la proposition"); return }
     if (!voteComment.trim()) { toast.error("Veuillez rediger un commentaire lie a votre role"); return }
     setLoading(true)
-    const supabase = createClient()
-    const { error } = await supabase.from("votes").insert({
-      decision_id: decision.id,
-      user_id: currentUserId,
-      option_id: decision.proposed_option_id,
-      approved: voteApproved,
-      comment: voteComment,
-    })
-    if (error) {
-      toast.error(error.message.includes("duplicate") ? "Vous avez deja vote" : "Erreur lors du vote")
+    const result = await castVoteAction(decision.id, decision.proposed_option_id, voteApproved, voteComment)
+    if (result.error) {
+      toast.error(result.error)
     } else {
       toast.success(voteApproved ? "Approbation enregistree" : "Opposition enregistree")
       await refreshData()
@@ -240,30 +207,17 @@ export function DecisionFlow({
     setLoading(false)
   }
 
-  // STEP 3: DG validates (collegial) or overrides (unilateral)
+  // STEP 3: DG validates (collegial) or overrides (unilateral) (via Server Action)
   async function dgValidate() {
     if (isLocked) { toast.error("Le temps est ecoule"); return }
+    if (!decision?.id) { toast.error("Decision non trouvee. Veuillez rafraichir la page."); return }
     if (!dgComment.trim()) { toast.error("Veuillez argumenter votre decision"); return }
     setLoading(true)
-    const supabase = createClient()
-    const finalOptionId = dgOverride && dgOverrideOption
-      ? dgOverrideOption
-      : decision.proposed_option_id
-
-    const { error } = await supabase
-      .from("decisions")
-      .update({
-        status: "validated",
-        proposed_option_id: finalOptionId,
-        dg_validated: true,
-        dg_validated_by: currentUserId,
-        dg_validated_at: new Date().toISOString(),
-        dg_comment: dgComment,
-        dg_override_option_id: dgOverride ? dgOverrideOption : null,
-      })
-      .eq("id", decision.id)
-    if (error) toast.error("Erreur lors de la validation")
-    else {
+    const overrideId = dgOverride && dgOverrideOption ? dgOverrideOption : null
+    const result = await validateDecisionAction(decision.id, dgComment, overrideId)
+    if (result.error) {
+      toast.error("Erreur: " + result.error)
+    } else {
       toast.success(dgOverride ? "Decision unilaterale enregistree" : "Decision collegiale validee")
       await refreshData()
     }
