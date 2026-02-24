@@ -148,8 +148,20 @@ export function DecisionFlow({
         .select("*, event_options(*), profiles(*)")
         .eq("decision_id", decision.id)
       if (updatedVotes) setVotes(updatedVotes)
+    } else {
+      // Decision doesn't exist yet -- poll for it (admin may have just triggered the event)
+      const { data: foundDecision } = await supabase
+        .from("decisions")
+        .select("*, event_options(*)")
+        .eq("session_event_id", sessionEvent.id)
+        .eq("team_id", teamId)
+        .single()
+      if (foundDecision) {
+        console.log("[v0] Found decision that was missing at load:", foundDecision.id)
+        setDecision(foundDecision)
+      }
     }
-  }, [decision?.id])
+  }, [decision?.id, sessionEvent.id, teamId])
 
   useEffect(() => {
     const interval = setInterval(refreshData, 5000)
@@ -159,6 +171,7 @@ export function DecisionFlow({
   // STEP 1: Specialist proposes an option with argumentaire
   async function proposeOption(optionId: string) {
     if (isLocked) { toast.error("Le temps est ecoule"); return }
+    if (!decision?.id) { toast.error("Decision non trouvee. Veuillez rafraichir la page."); return }
     if (!specAvantages.trim() || !specInconvenients.trim() || !specJustification.trim()) {
       toast.error("Veuillez remplir les 3 champs d'argumentaire avant de proposer")
       return
@@ -166,7 +179,7 @@ export function DecisionFlow({
     setLoading(true)
     setProposalSubmitted(true)
     const supabase = createClient()
-    const { error } = await supabase
+    const { error, count } = await supabase
       .from("decisions")
       .update({
         proposed_option_id: optionId,
@@ -177,8 +190,10 @@ export function DecisionFlow({
         comment_justification: specJustification,
       })
       .eq("id", decision.id)
+      .select()
     if (error) {
-      toast.error("Erreur lors de la proposition")
+      console.error("[v0] proposeOption error:", error)
+      toast.error("Erreur lors de la proposition: " + error.message)
       setProposalSubmitted(false)
     } else {
       toast.success("Option proposee. Les autres membres peuvent maintenant voter.")
@@ -190,6 +205,7 @@ export function DecisionFlow({
   // STEP 2: Other members approve/reject with role-specific comment
   async function castVote() {
     if (isLocked) { toast.error("Le temps est ecoule"); return }
+    if (!decision?.id) { toast.error("Decision non trouvee. Veuillez rafraichir la page."); return }
     if (voteApproved === null) { toast.error("Veuillez approuver ou rejeter la proposition"); return }
     if (!voteComment.trim()) { toast.error("Veuillez rediger un commentaire lie a votre role"); return }
     setLoading(true)
@@ -284,6 +300,23 @@ export function DecisionFlow({
           </div>
         </CardHeader>
       </Card>
+
+      {/* Decision loading - waiting for admin to create decisions */}
+      {!decision && (
+        <Card className="border-primary/20 bg-primary/5">
+          <CardContent className="flex flex-col items-center gap-4 p-8 text-center">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/15 animate-pulse">
+              <Clock className="h-6 w-6 text-primary" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-foreground">Chargement de la decision en cours...</p>
+              <p className="mt-1 text-xs text-muted-foreground">{"La decision de votre equipe est en cours de preparation. Veuillez patienter."}</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {!decision ? null : (<>
 
       {/* Progress Steps */}
       <div className="flex items-center justify-center gap-0">
@@ -718,6 +751,7 @@ export function DecisionFlow({
           )}
         </>
       )}
+      </>)}
     </div>
   )
 }
