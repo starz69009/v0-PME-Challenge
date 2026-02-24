@@ -89,6 +89,8 @@ export function DecisionFlow({
   const [votes, setVotes] = useState(initialVotes)
   const [loading, setLoading] = useState(false)
 
+  console.log("[v0] DecisionFlow render - initialDecision:", initialDecision?.id || "NULL", "initialDecision status:", initialDecision?.status, "decision state:", decision?.id || "NULL", "decision status:", decision?.status, "currentRole:", currentRole, "teamId:", teamId)
+
   const [selectedOption, setSelectedOption] = useState<string | null>(null)
   const [proposalSubmitted, setProposalSubmitted] = useState(false)
   // Specialist argumentaire (step 1)
