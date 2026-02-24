@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase/server"
 import { PlayersManager } from "@/components/admin/players-manager"
 
+export const dynamic = "force-dynamic"
+
 export const metadata = {
   title: "Joueurs",
 }
