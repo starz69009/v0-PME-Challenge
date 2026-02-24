@@ -17,9 +17,9 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { CategoryBadge } from "@/components/category-badge"
 import { Plus, Play, Eye, Trash2, Zap, Building2, Users, Timer, Square, ChevronDown, ChevronRight, CheckCircle2, Clock, Trophy, MessageSquare, Award } from "lucide-react"
-import { SESSION_STATUS_LABELS, SCORE_FIELDS, CATEGORY_LABELS } from "@/lib/constants"
+import { SESSION_STATUS_LABELS, SCORE_FIELDS, CATEGORY_LABELS, COMPANY_ROLE_LABELS, CATEGORY_SPECIALIST_ROLE, DECISION_STATUS_LABELS } from "@/lib/constants"
 import { toast } from "sonner"
-import type { GameSession, GameEvent, Team, Entreprise, SessionTeam, SessionEvent, Decision, TeamScore, SessionStatus, EventCategory, CompanyRole, EventOption } from "@/lib/types"
+import type { GameSession, GameEvent, Team, Entreprise, SessionTeam, SessionEvent, Decision, TeamScore, Vote, TeamMember, Profile, SessionStatus, EventCategory, CompanyRole, EventOption } from "@/lib/types"
 
 const STATUS_STYLES: Record<string, string> = {
   setup: "border-muted-foreground/30 bg-muted-foreground/10 text-muted-foreground",
@@ -77,6 +77,8 @@ export function SessionsManager({
   sessionEvents,
   decisions,
   teamScores,
+  votes = [],
+  teamMembers = [],
 }: {
   initialSessions: GameSession[]
   events: GameEvent[]
@@ -86,6 +88,8 @@ export function SessionsManager({
   sessionEvents: SessionEvent[]
   decisions: Decision[]
   teamScores: TeamScore[]
+  votes?: Vote[]
+  teamMembers?: TeamMember[]
 }) {
   const router = useRouter()
   const [sessions, setSessions] = useState(initialSessions)
@@ -144,7 +148,21 @@ export function SessionsManager({
   }
 
   function getTeamScoresForEvent(sessionEventId: string) {
-    return teamScores.filter((ts) => ts.session_event_id === sessionEventId)
+    return teamScores.filter((s) => s.session_event_id === sessionEventId)
+  }
+
+  function getVotesForDecision(decisionId: string) {
+    return votes.filter((v) => v.decision_id === decisionId)
+  }
+
+  function getMemberRole(userId: string, teamId: string): CompanyRole | undefined {
+    const m = teamMembers.find((tm) => tm.user_id === userId && tm.team_id === teamId)
+    return m?.role_in_company
+  }
+
+  function getMemberName(userId: string): string {
+    const m = teamMembers.find((tm) => tm.user_id === userId)
+    return m?.profiles?.display_name || m?.profiles?.email || "Joueur"
   }
 
   function getDurationSeconds(): number {
@@ -580,43 +598,103 @@ export function SessionsManager({
                                       const chosenOption = decision.event_options
                                       const score = eventScores.find((s) => s.team_id === decision.team_id)
 
+                                      const decisionVotes = getVotesForDecision(decision.id)
+                                      const specialistRole = event?.category ? CATEGORY_SPECIALIST_ROLE[event.category as EventCategory] : undefined
+                                      const proposerRole = decision.proposed_by ? getMemberRole(decision.proposed_by, decision.team_id) : undefined
+                                      const proposerName = decision.proposed_by ? getMemberName(decision.proposed_by) : null
+
                                       return (
-                                        <div key={decision.id} className="px-4 py-2.5">
+                                        <div key={decision.id} className="px-4 py-3 space-y-2.5">
+                                          {/* Team header + status */}
                                           <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-2">
                                               <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: team.colors_primary }} />
                                               <span className="text-sm font-medium text-foreground">{team.name}</span>
-                                              {decision.status === "validated" || decision.dg_validated ? (
+                                              {decision.status === "validated" ? (
                                                 <Badge variant="outline" className="text-[10px] border-[#84cc16]/30 text-[#84cc16]">Valide</Badge>
                                               ) : decision.status === "pending" ? (
-                                                <Badge variant="outline" className="text-[10px] border-muted-foreground/30 text-muted-foreground">En attente</Badge>
+                                                <Badge variant="outline" className="text-[10px] border-muted-foreground/30 text-muted-foreground">En attente specialiste</Badge>
+                                              ) : decision.status === "voting" ? (
+                                                <Badge variant="outline" className="text-[10px] border-[#f59e0b]/30 text-[#f59e0b]">Vote/Decision DG</Badge>
                                               ) : (
-                                                <Badge variant="outline" className="text-[10px] border-[#f59e0b]/30 text-[#f59e0b]">{decision.status}</Badge>
+                                                <Badge variant="outline" className="text-[10px] border-muted-foreground/30">{DECISION_STATUS_LABELS[decision.status]}</Badge>
                                               )}
                                             </div>
-                                            {chosenOption && (
-                                              <span className="text-xs font-medium text-muted-foreground">{chosenOption.label}</span>
-                                            )}
+                                            {chosenOption && <span className="text-xs font-medium text-muted-foreground">{chosenOption.label}</span>}
                                           </div>
 
-                                          {/* Team argumentaire */}
-                                          {(decision.comment_avantages || decision.comment_inconvenients || decision.comment_justification) && (
-                                            <div className="mt-2 space-y-1 rounded-md border border-border/20 bg-muted/10 p-2">
+                                          {/* STEP 1: Specialist proposal */}
+                                          {decision.proposed_by && (
+                                            <div className="rounded-md border border-border/20 bg-muted/10 p-2.5 space-y-1.5">
+                                              <div className="flex items-center gap-1.5">
+                                                <span className="text-[10px] uppercase tracking-wider font-bold text-primary">Proposition</span>
+                                                <span className="text-[10px] text-muted-foreground">
+                                                  par {proposerName}
+                                                  {proposerRole && ` (${COMPANY_ROLE_LABELS[proposerRole]})`}
+                                                </span>
+                                              </div>
                                               {decision.comment_avantages && (
-                                                <p className="text-[10px] text-muted-foreground"><span className="font-semibold text-success">+</span> {decision.comment_avantages}</p>
+                                                <p className="text-[10px] text-muted-foreground"><span className="font-semibold text-success">+ Avantages :</span> {decision.comment_avantages}</p>
                                               )}
                                               {decision.comment_inconvenients && (
-                                                <p className="text-[10px] text-muted-foreground"><span className="font-semibold text-destructive">-</span> {decision.comment_inconvenients}</p>
+                                                <p className="text-[10px] text-muted-foreground"><span className="font-semibold text-destructive">- Inconvenients :</span> {decision.comment_inconvenients}</p>
                                               )}
                                               {decision.comment_justification && (
-                                                <p className="text-[10px] text-muted-foreground"><span className="font-semibold text-primary">?</span> {decision.comment_justification}</p>
+                                                <p className="text-[10px] text-muted-foreground"><span className="font-semibold text-primary">Justification :</span> {decision.comment_justification}</p>
                                               )}
                                             </div>
                                           )}
 
-                                          {/* Show scores if attributed */}
+                                          {/* STEP 2: Voter comments */}
+                                          {decisionVotes.length > 0 && (
+                                            <div className="rounded-md border border-border/20 bg-muted/10 p-2.5 space-y-1.5">
+                                              <span className="text-[10px] uppercase tracking-wider font-bold text-primary">Votes ({decisionVotes.length})</span>
+                                              {decisionVotes.map((v) => {
+                                                const voterRole = getMemberRole(v.user_id, decision.team_id)
+                                                const voterName = getMemberName(v.user_id)
+                                                return (
+                                                  <div key={v.id} className="flex items-start gap-2 py-1 border-t border-border/10 first:border-t-0 first:pt-0">
+                                                    <div className="flex-1">
+                                                      <div className="flex items-center gap-1.5">
+                                                        <span className="text-[10px] font-semibold">{voterName}</span>
+                                                        {voterRole && <span className="text-[9px] text-muted-foreground">({COMPANY_ROLE_LABELS[voterRole]})</span>}
+                                                        {v.approved === true
+                                                          ? <Badge className="bg-success/15 text-success text-[8px] py-0 px-1 border-success/30">Pour</Badge>
+                                                          : v.approved === false
+                                                          ? <Badge className="bg-destructive/15 text-destructive text-[8px] py-0 px-1 border-destructive/30">Contre</Badge>
+                                                          : null
+                                                        }
+                                                      </div>
+                                                      {v.comment && <p className="text-[10px] text-muted-foreground mt-0.5 italic">{v.comment}</p>}
+                                                    </div>
+                                                  </div>
+                                                )
+                                              })}
+                                            </div>
+                                          )}
+
+                                          {/* STEP 3: DG decision */}
+                                          {decision.dg_validated && (
+                                            <div className="rounded-md border border-border/20 bg-muted/10 p-2.5 space-y-1">
+                                              <div className="flex items-center gap-1.5">
+                                                <span className="text-[10px] uppercase tracking-wider font-bold text-primary">Decision DG</span>
+                                                {decision.dg_override_option_id
+                                                  ? <Badge variant="outline" className="text-[8px] border-warning/30 text-warning py-0 px-1">Unilaterale</Badge>
+                                                  : <Badge variant="outline" className="text-[8px] border-success/30 text-success py-0 px-1">Collegiale</Badge>
+                                                }
+                                                {decision.dg_validated_by && (
+                                                  <span className="text-[10px] text-muted-foreground">par {getMemberName(decision.dg_validated_by)}</span>
+                                                )}
+                                              </div>
+                                              {decision.dg_comment && (
+                                                <p className="text-[10px] text-muted-foreground italic">{decision.dg_comment}</p>
+                                              )}
+                                            </div>
+                                          )}
+
+                                          {/* Scores */}
                                           {score && (
-                                            <div className="mt-1.5 flex items-center gap-1.5">
+                                            <div className="flex items-center gap-1.5">
                                               {SCORE_FIELDS.map((f) => {
                                                 const val = score[f.key as keyof typeof score] as number
                                                 if (val === 0) return null
@@ -631,7 +709,7 @@ export function SessionsManager({
 
                                           {/* Admin comment */}
                                           {decision.admin_comment && (
-                                            <div className="mt-1.5 flex items-start gap-1.5">
+                                            <div className="flex items-start gap-1.5">
                                               <MessageSquare className="h-3 w-3 text-muted-foreground/50 mt-0.5 shrink-0" />
                                               <p className="text-xs text-muted-foreground italic">{decision.admin_comment}</p>
                                             </div>
@@ -810,10 +888,10 @@ export function SessionsManager({
                       <p className="text-xs text-muted-foreground bg-muted/20 rounded-md px-3 py-2">{chosenOption.description}</p>
                     )}
 
-                    {/* Structured comments from the team */}
+                    {/* Specialist argumentaire */}
                     {(decision.comment_avantages || decision.comment_inconvenients || decision.comment_justification) && (
                       <div className="space-y-2 rounded-lg border border-border/30 bg-muted/10 p-3">
-                        <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Argumentaire de l{"'"}equipe</p>
+                        <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Argumentaire du specialiste</p>
                         {decision.comment_avantages && (
                           <div className="space-y-0.5">
                             <p className="text-[10px] font-semibold text-success">Avantages</p>
@@ -832,6 +910,49 @@ export function SessionsManager({
                             <p className="text-xs text-muted-foreground leading-relaxed">{decision.comment_justification}</p>
                           </div>
                         )}
+                      </div>
+                    )}
+
+                    {/* Voter comments */}
+                    {(() => {
+                      const decisionVotes = getVotesForDecision(decision.id)
+                      if (decisionVotes.length === 0) return null
+                      return (
+                        <div className="space-y-1.5 rounded-lg border border-border/30 bg-muted/10 p-3">
+                          <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Votes de l{"'"}equipe ({decisionVotes.length})</p>
+                          {decisionVotes.map((v) => {
+                            const role = getMemberRole(v.user_id, decision.team_id)
+                            return (
+                              <div key={v.id} className="flex items-start gap-2 py-1 border-t border-border/10 first:border-t-0">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-[10px] font-semibold">{getMemberName(v.user_id)}</span>
+                                    {role && <span className="text-[9px] text-muted-foreground">({COMPANY_ROLE_LABELS[role]})</span>}
+                                    {v.approved === true
+                                      ? <Badge className="bg-success/15 text-success text-[8px] py-0 px-1 border-success/30">Pour</Badge>
+                                      : <Badge className="bg-destructive/15 text-destructive text-[8px] py-0 px-1 border-destructive/30">Contre</Badge>
+                                    }
+                                  </div>
+                                  {v.comment && <p className="text-[10px] text-muted-foreground italic mt-0.5">{v.comment}</p>}
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )
+                    })()}
+
+                    {/* DG decision */}
+                    {decision.dg_validated && decision.dg_comment && (
+                      <div className="rounded-lg border border-border/30 bg-muted/10 p-3 space-y-1">
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Decision DG</p>
+                          {decision.dg_override_option_id
+                            ? <Badge variant="outline" className="text-[8px] border-warning/30 text-warning py-0 px-1">Unilaterale</Badge>
+                            : <Badge variant="outline" className="text-[8px] border-success/30 text-success py-0 px-1">Collegiale</Badge>
+                          }
+                        </div>
+                        <p className="text-[10px] text-muted-foreground italic">{decision.dg_comment}</p>
                       </div>
                     )}
 

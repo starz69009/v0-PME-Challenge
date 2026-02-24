@@ -45,3 +45,12 @@ export const DECISION_STATUS_LABELS = {
   validated: 'Validee',
   rejected: 'Rejetee',
 } as const
+
+// Maps event category to the specialist company role responsible for initial proposal
+export const CATEGORY_SPECIALIST_ROLE: Record<EventCategory, CompanyRole> = {
+  social: 'rh',
+  commercial: 'commercial',
+  tresorerie: 'finance',
+  production: 'production',
+  reglementaire: 'finance',
+} as const

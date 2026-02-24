@@ -9,8 +9,8 @@ import { Badge } from "@/components/ui/badge"
 import { CategoryBadge } from "@/components/category-badge"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
-import { CheckCircle, Vote, ShieldCheck, Clock, User, ThumbsUp, Timer, AlertTriangle } from "lucide-react"
-import { COMPANY_ROLE_LABELS, DECISION_STATUS_LABELS } from "@/lib/constants"
+import { CheckCircle, ShieldCheck, Clock, User, ThumbsUp, ThumbsDown, Timer, AlertTriangle, MessageSquare, ChevronDown, ChevronUp } from "lucide-react"
+import { COMPANY_ROLE_LABELS, DECISION_STATUS_LABELS, CATEGORY_SPECIALIST_ROLE } from "@/lib/constants"
 import { toast } from "sonner"
 import type { CompanyRole, DecisionStatus, EventCategory } from "@/lib/types"
 
@@ -32,17 +32,11 @@ function CountdownTimer({ expiresAt, onExpire, durationSeconds }: { expiresAt: s
   })
 
   useEffect(() => {
-    if (timeLeft <= 0) {
-      onExpire()
-      return
-    }
+    if (timeLeft <= 0) { onExpire(); return }
     const interval = setInterval(() => {
       const remaining = Math.max(0, Math.floor((new Date(expiresAt).getTime() - Date.now()) / 1000))
       setTimeLeft(remaining)
-      if (remaining <= 0) {
-        onExpire()
-        clearInterval(interval)
-      }
+      if (remaining <= 0) { onExpire(); clearInterval(interval) }
     }, 1000)
     return () => clearInterval(interval)
   }, [expiresAt, onExpire, timeLeft])
@@ -51,8 +45,6 @@ function CountdownTimer({ expiresAt, onExpire, durationSeconds }: { expiresAt: s
   const hours = Math.floor((timeLeft % 86400) / 3600)
   const mins = Math.floor((timeLeft % 3600) / 60)
   const secs = timeLeft % 60
-
-  // Urgency thresholds adapt to duration: 10% remaining = urgent, 3% = critical (minimum 30s/10s)
   const urgentThreshold = Math.max(30, Math.floor((durationSeconds || 300) * 0.10))
   const criticalThreshold = Math.max(10, Math.floor((durationSeconds || 300) * 0.03))
   const isUrgent = timeLeft <= urgentThreshold
@@ -66,26 +58,16 @@ function CountdownTimer({ expiresAt, onExpire, durationSeconds }: { expiresAt: s
 
   return (
     <div className={`flex items-center gap-3 rounded-xl border px-5 py-3 font-mono transition-all ${
-      isCritical
-        ? "border-destructive/50 bg-destructive/10 animate-pulse"
-        : isUrgent
-        ? "border-warning/50 bg-warning/10"
+      isCritical ? "border-destructive/50 bg-destructive/10 animate-pulse"
+        : isUrgent ? "border-warning/50 bg-warning/10"
         : "border-primary/30 bg-primary/5"
     }`}>
-      <Timer className={`h-5 w-5 ${
-        isCritical ? "text-destructive" : isUrgent ? "text-warning" : "text-primary"
-      }`} />
-      <span className={`text-2xl font-bold tabular-nums ${
-        isCritical ? "text-destructive" : isUrgent ? "text-warning" : "text-primary"
-      }`}>
+      <Timer className={`h-5 w-5 ${isCritical ? "text-destructive" : isUrgent ? "text-warning" : "text-primary"}`} />
+      <span className={`text-2xl font-bold tabular-nums ${isCritical ? "text-destructive" : isUrgent ? "text-warning" : "text-primary"}`}>
         {formatCountdown()}
       </span>
-      {isUrgent && !isCritical && (
-        <span className="text-xs font-semibold text-warning">Depechez-vous !</span>
-      )}
-      {isCritical && (
-        <span className="text-xs font-semibold text-destructive">Temps presque ecoule</span>
-      )}
+      {isUrgent && !isCritical && <span className="text-xs font-semibold text-warning">Depechez-vous !</span>}
+      {isCritical && <span className="text-xs font-semibold text-destructive">Temps presque ecoule</span>}
     </div>
   )
 }
@@ -106,9 +88,19 @@ export function DecisionFlow({
   const [votes, setVotes] = useState(initialVotes)
   const [loading, setLoading] = useState(false)
   const [selectedOption, setSelectedOption] = useState<string | null>(null)
-  const [commentAvantages, setCommentAvantages] = useState(initialDecision?.comment_avantages || "")
-  const [commentInconvenients, setCommentInconvenients] = useState(initialDecision?.comment_inconvenients || "")
-  const [commentJustification, setCommentJustification] = useState(initialDecision?.comment_justification || "")
+  // Specialist argumentaire (step 1)
+  const [specAvantages, setSpecAvantages] = useState(initialDecision?.comment_avantages || "")
+  const [specInconvenients, setSpecInconvenients] = useState(initialDecision?.comment_inconvenients || "")
+  const [specJustification, setSpecJustification] = useState(initialDecision?.comment_justification || "")
+  // Voter comment (step 2)
+  const [voteComment, setVoteComment] = useState("")
+  const [voteApproved, setVoteApproved] = useState<boolean | null>(null)
+  // DG comment (step 3)
+  const [dgComment, setDgComment] = useState("")
+  const [dgOverride, setDgOverride] = useState(false)
+  const [dgOverrideOption, setDgOverrideOption] = useState<string | null>(null)
+  const [showVoteDetails, setShowVoteDetails] = useState(false)
+
   const [expired, setExpired] = useState(() => {
     if (!expiresAt) return false
     return new Date(expiresAt).getTime() <= Date.now()
@@ -119,19 +111,27 @@ export function DecisionFlow({
   const status: DecisionStatus = decision?.status || "pending"
   const userVote = votes.find((v: any) => v.user_id === currentUserId)
 
-  const categoryToRole: Record<string, CompanyRole> = {
-    social: "rh",
-    commercial: "commercial",
-    tresorerie: "finance",
-    production: "production",
-    reglementaire: "dg",
-  }
-  const responsibleRole = categoryToRole[event.category || ""] || "dg"
-  const isResponsible = currentRole === responsibleRole || currentRole === "dg"
+  const specialistRole = CATEGORY_SPECIALIST_ROLE[(event.category || "") as EventCategory] || "dg"
+  const isSpecialist = currentRole === specialistRole
   const isDG = currentRole === "dg"
-
-  // Lock all actions if expired and decision not yet validated
   const isLocked = expired && status !== "validated"
+
+  // Get team member info by user_id
+  const getMemberInfo = (userId: string) => {
+    const member = teamMembers.find((m: any) => m.user_id === userId)
+    return {
+      name: member?.profiles?.display_name || member?.profiles?.email || "Joueur",
+      role: member?.role_in_company as CompanyRole | undefined,
+    }
+  }
+
+  // Count approvals/rejections
+  const approvals = votes.filter((v: any) => v.approved === true).length
+  const rejections = votes.filter((v: any) => v.approved === false).length
+  const nonDGNonSpecMembers = teamMembers.filter((m: any) => m.role_in_company !== "dg" && m.role_in_company !== specialistRole)
+  const allVotersVoted = nonDGNonSpecMembers.length > 0
+    ? nonDGNonSpecMembers.every((m: any) => votes.some((v: any) => v.user_id === m.user_id))
+    : votes.length > 0
 
   const refreshData = useCallback(async () => {
     const supabase = createClient()
@@ -142,7 +142,6 @@ export function DecisionFlow({
         .eq("id", decision.id)
         .single()
       if (updatedDecision) setDecision(updatedDecision)
-
       const { data: updatedVotes } = await supabase
         .from("votes")
         .select("*, event_options(*), profiles(*)")
@@ -156,8 +155,13 @@ export function DecisionFlow({
     return () => clearInterval(interval)
   }, [refreshData])
 
+  // STEP 1: Specialist proposes an option with argumentaire
   async function proposeOption(optionId: string) {
     if (isLocked) { toast.error("Le temps est ecoule"); return }
+    if (!specAvantages.trim() || !specInconvenients.trim() || !specJustification.trim()) {
+      toast.error("Veuillez remplir les 3 champs d'argumentaire avant de proposer")
+      return
+    }
     setLoading(true)
     const supabase = createClient()
     const { error } = await supabase
@@ -165,80 +169,77 @@ export function DecisionFlow({
       .update({
         proposed_option_id: optionId,
         proposed_by: currentUserId,
-        status: "proposed",
+        status: "voting",
+        comment_avantages: specAvantages,
+        comment_inconvenients: specInconvenients,
+        comment_justification: specJustification,
       })
       .eq("id", decision.id)
-
-    if (error) {
-      toast.error("Erreur lors de la proposition")
-    } else {
-      toast.success("Option proposee avec succes")
-      await supabase
-        .from("decisions")
-        .update({ status: "voting" })
-        .eq("id", decision.id)
-      await refreshData()
-    }
+    if (error) toast.error("Erreur lors de la proposition")
+    else { toast.success("Option proposee. Les autres membres peuvent maintenant voter."); await refreshData() }
     setLoading(false)
   }
 
-  async function castVote(optionId: string) {
+  // STEP 2: Other members approve/reject with role-specific comment
+  async function castVote() {
     if (isLocked) { toast.error("Le temps est ecoule"); return }
+    if (voteApproved === null) { toast.error("Veuillez approuver ou rejeter la proposition"); return }
+    if (!voteComment.trim()) { toast.error("Veuillez rediger un commentaire lie a votre role"); return }
     setLoading(true)
     const supabase = createClient()
     const { error } = await supabase.from("votes").insert({
       decision_id: decision.id,
       user_id: currentUserId,
-      option_id: optionId,
+      option_id: decision.proposed_option_id,
+      approved: voteApproved,
+      comment: voteComment,
     })
     if (error) {
       toast.error(error.message.includes("duplicate") ? "Vous avez deja vote" : "Erreur lors du vote")
     } else {
-      toast.success("Vote enregistre")
+      toast.success(voteApproved ? "Approbation enregistree" : "Opposition enregistree")
       await refreshData()
     }
     setLoading(false)
   }
 
-  async function validateDecision() {
+  // STEP 3: DG validates (collegial) or overrides (unilateral)
+  async function dgValidate() {
     if (isLocked) { toast.error("Le temps est ecoule"); return }
+    if (!dgComment.trim()) { toast.error("Veuillez argumenter votre decision"); return }
     setLoading(true)
     const supabase = createClient()
-    const voteCounts: Record<string, number> = {}
-    votes.forEach((v: any) => {
-      voteCounts[v.option_id] = (voteCounts[v.option_id] || 0) + 1
-    })
-    const winningOptionId = Object.entries(voteCounts).sort(([, a], [, b]) => b - a)[0]?.[0]
-      || decision.proposed_option_id
+    const finalOptionId = dgOverride && dgOverrideOption
+      ? dgOverrideOption
+      : decision.proposed_option_id
 
     const { error } = await supabase
       .from("decisions")
       .update({
         status: "validated",
-        proposed_option_id: winningOptionId,
+        proposed_option_id: finalOptionId,
         dg_validated: true,
         dg_validated_by: currentUserId,
         dg_validated_at: new Date().toISOString(),
-        comment_avantages: commentAvantages || null,
-        comment_inconvenients: commentInconvenients || null,
-        comment_justification: commentJustification || null,
+        dg_comment: dgComment,
+        dg_override_option_id: dgOverride ? dgOverrideOption : null,
       })
       .eq("id", decision.id)
-
-    if (error) {
-      toast.error("Erreur lors de la validation")
-    } else {
-      toast.success("Decision validee par le DG")
+    if (error) toast.error("Erreur lors de la validation")
+    else {
+      toast.success(dgOverride ? "Decision unilaterale enregistree" : "Decision collegiale validee")
       await refreshData()
     }
     setLoading(false)
   }
 
   const steps = [
-    { label: "Proposition", icon: User, done: status !== "pending", active: status === "pending" },
-    { label: "Vote", icon: Vote, done: status === "validated" || status === "rejected", active: status === "voting" },
-    { label: "Validation", icon: ShieldCheck, done: status === "validated", active: false },
+    { label: "Proposition specialiste", icon: User, done: status !== "pending", active: status === "pending" },
+    { label: "Votes equipe", icon: ThumbsUp, done: status === "validated" || allVotersVoted, active: status === "voting" && !allVotersVoted },
+    { label: "Decision DG", icon: ShieldCheck, done: status === "validated", active: status === "voting" && allVotersVoted },
   ]
+
+  const proposedOption = options.find((o: any) => o.id === decision?.proposed_option_id)
 
   return (
     <div className="space-y-6">
@@ -258,9 +259,7 @@ export function DecisionFlow({
             </div>
             <div>
               <p className="text-sm font-bold text-destructive">Temps ecoule</p>
-              <p className="text-xs text-muted-foreground">
-                {"Le delai de reaction est termine. L'administrateur va appliquer les scores."}
-              </p>
+              <p className="text-xs text-muted-foreground">{"Le delai de reaction est termine. L'administrateur va appliquer les scores."}</p>
             </div>
           </CardContent>
         </Card>
@@ -284,248 +283,421 @@ export function DecisionFlow({
         {steps.map((step, idx) => (
           <div key={step.label} className="flex items-center">
             {idx > 0 && (
-              <div className={`h-0.5 w-10 sm:w-16 transition-colors ${step.done || step.active ? "bg-primary" : "bg-border/60"}`} />
+              <div className={`h-0.5 w-8 sm:w-12 transition-colors ${step.done || step.active ? "bg-primary" : "bg-border/60"}`} />
             )}
-            <div className={`flex items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold transition-all ${
-              step.done
-                ? "bg-success/15 text-success"
-                : step.active
-                ? "bg-primary/15 text-primary glow-primary"
+            <div className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] sm:text-xs font-semibold transition-all ${
+              step.done ? "bg-success/15 text-success"
+                : step.active ? "bg-primary/15 text-primary glow-primary"
                 : "bg-muted/50 text-muted-foreground"
             }`}>
-              {step.done ? <CheckCircle className="h-4 w-4" /> : <step.icon className="h-4 w-4" />}
+              {step.done ? <CheckCircle className="h-3.5 w-3.5" /> : <step.icon className="h-3.5 w-3.5" />}
               <span className="hidden sm:inline">{step.label}</span>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Status */}
+      {/* Status Badge */}
       <div className="text-center">
-        <Badge
-          className={`px-4 py-1 text-xs font-semibold ${
-            status === "validated"
-              ? "bg-success/15 text-success border-success/30"
-              : isLocked
-              ? "bg-destructive/15 text-destructive border-destructive/30"
-              : status === "voting"
-              ? "bg-primary/15 text-primary border-primary/30"
-              : "bg-muted text-muted-foreground"
-          }`}
-        >
+        <Badge className={`px-4 py-1 text-xs font-semibold ${
+          status === "validated" ? "bg-success/15 text-success border-success/30"
+            : isLocked ? "bg-destructive/15 text-destructive border-destructive/30"
+            : status === "voting" ? "bg-primary/15 text-primary border-primary/30"
+            : "bg-muted text-muted-foreground"
+        }`}>
           {isLocked ? "Temps ecoule" : DECISION_STATUS_LABELS[status]}
         </Badge>
       </div>
 
-      {/* Decision validated result */}
-      {status === "validated" && decision?.event_options && (
+      {/* ===== VALIDATED RESULT ===== */}
+      {status === "validated" && (
         <div className="gradient-border overflow-hidden rounded-xl">
-          <div className="bg-card/80 p-6 text-center backdrop-blur-sm">
-            <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-success/15">
+          <div className="bg-card/80 p-6 text-center backdrop-blur-sm space-y-3">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-success/15">
               <CheckCircle className="h-7 w-7 text-success" />
             </div>
             <h3 className="text-lg font-bold text-foreground">Decision validee</h3>
-            <p className="mt-1 text-muted-foreground">
-              Option choisie : <span className="font-semibold text-foreground">{decision.event_options.label}</span>
+            <p className="text-muted-foreground">
+              Option retenue : <span className="font-semibold text-foreground">{decision?.event_options?.label || proposedOption?.label}</span>
             </p>
+            {decision?.dg_override_option_id && (
+              <Badge variant="outline" className="border-warning/40 text-warning text-xs">Decision unilaterale du DG</Badge>
+            )}
+            {decision?.dg_comment && (
+              <div className="mx-auto max-w-md rounded-lg bg-muted/20 p-3 text-left">
+                <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mb-1">Commentaire du DG</p>
+                <p className="text-xs text-muted-foreground">{decision.dg_comment}</p>
+              </div>
+            )}
           </div>
         </div>
       )}
 
-      {/* Option Cards */}
-      {status !== "validated" && (
-        <div className={`grid gap-4 md:grid-cols-3 ${isLocked ? "pointer-events-none opacity-60" : ""}`}>
-          {options.map((option: any) => {
-            const isProposed = decision?.proposed_option_id === option.id
-            const isSelected = selectedOption === option.id
-            const voteCount = votes.filter((v: any) => v.option_id === option.id).length
-            const hasVotedThis = userVote?.option_id === option.id
-
-            return (
-              <Card
-                key={option.id}
-                className={`cursor-pointer transition-all duration-200 ${
-                  isProposed
-                    ? "border-primary/50 bg-primary/5 ring-2 ring-primary/20 glow-primary"
-                    : isSelected
-                    ? "border-primary/40 bg-card ring-1 ring-primary/15"
-                    : "border-border/40 bg-card/60 hover:border-primary/25 hover:bg-card/80"
-                }`}
-                onClick={() => {
-                  if (isLocked) return
-                  if (status === "pending" && isResponsible) setSelectedOption(option.id)
-                  if (status === "voting" && !userVote) setSelectedOption(option.id)
-                }}
-              >
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <CardTitle className="text-sm font-bold">{option.label}</CardTitle>
-                    {isProposed && (
-                      <Badge className="bg-primary/15 text-primary text-[10px] font-semibold border-primary/30">Proposee</Badge>
-                    )}
-                  </div>
-                  {option.description && (
-                    <CardDescription className="text-xs">{option.description}</CardDescription>
-                  )}
-                </CardHeader>
-                <CardContent className="pt-0">
-                  {/* Vote count during voting */}
-                  {status === "voting" && (
-                    <div className="mb-2 overflow-hidden rounded-lg bg-muted/30">
-                      <div className="flex items-center justify-between px-3 py-2 text-xs">
-                        <span className="font-medium text-muted-foreground">Votes</span>
-                        <span className="font-bold text-foreground">{voteCount}</span>
-                      </div>
-                      {teamMembers.length > 0 && (
-                        <div className="h-1 bg-muted/50">
-                          <div
-                            className="h-full bg-primary transition-all"
-                            style={{ width: `${(voteCount / teamMembers.length) * 100}%` }}
-                          />
-                        </div>
-                      )}
+      {/* ===== STEP 1: SPECIALIST PROPOSES ===== */}
+      {status === "pending" && (
+        <>
+          {isSpecialist ? (
+            <Card className="border-primary/30 bg-primary/5">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-bold flex items-center gap-2">
+                  <User className="h-4 w-4 text-primary" />
+                  {"C'est a vous de proposer une solution"}
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  En tant que <span className="font-semibold text-foreground">{COMPANY_ROLE_LABELS[specialistRole]}</span>, vous etes le specialiste de cet evenement. Selectionnez une option et argumentez votre choix.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Option selection */}
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {options.map((option: any) => (
+                    <div
+                      key={option.id}
+                      onClick={() => !isLocked && setSelectedOption(option.id)}
+                      className={`cursor-pointer rounded-lg border p-3 transition-all ${
+                        selectedOption === option.id
+                          ? "border-primary/50 bg-primary/10 ring-2 ring-primary/20"
+                          : "border-border/40 bg-card/60 hover:border-primary/25"
+                      }`}
+                    >
+                      <p className="text-sm font-bold">{option.label}</p>
+                      {option.description && <p className="mt-1 text-xs text-muted-foreground">{option.description}</p>}
                     </div>
-                  )}
+                  ))}
+                </div>
 
-                  {hasVotedThis && (
-                    <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-primary">
-                      <ThumbsUp className="h-3 w-3" />
-                      Votre vote
+                {/* Argumentaire fields */}
+                {selectedOption && (
+                  <div className="space-y-3 rounded-lg border border-border/30 bg-muted/10 p-4">
+                    <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Argumentaire obligatoire</p>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold text-success">Avantages de ce choix</Label>
+                      <Textarea
+                        placeholder="Quels sont les points positifs de cette decision ?"
+                        value={specAvantages}
+                        onChange={(e) => setSpecAvantages(e.target.value)}
+                        rows={2}
+                        className="bg-secondary/50 border-border/40 text-sm"
+                      />
                     </div>
-                  )}
-
-                  {/* Action buttons - hidden when locked */}
-                  {!isLocked && status === "pending" && isResponsible && isSelected && (
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold text-destructive">Inconvenients de ce choix</Label>
+                      <Textarea
+                        placeholder="Quels risques ou points negatifs voyez-vous ?"
+                        value={specInconvenients}
+                        onChange={(e) => setSpecInconvenients(e.target.value)}
+                        rows={2}
+                        className="bg-secondary/50 border-border/40 text-sm"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold text-primary">{"Qu'est-ce qui justifie finalement cette decision ?"}</Label>
+                      <Textarea
+                        placeholder="Expliquez pourquoi cette option est la meilleure pour l'entreprise..."
+                        value={specJustification}
+                        onChange={(e) => setSpecJustification(e.target.value)}
+                        rows={2}
+                        className="bg-secondary/50 border-border/40 text-sm"
+                      />
+                    </div>
                     <Button
-                      size="sm"
-                      className="mt-2 w-full glow-primary"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        proposeOption(option.id)
-                      }}
-                      disabled={loading}
+                      className="w-full glow-primary"
+                      onClick={() => proposeOption(selectedOption)}
+                      disabled={loading || isLocked}
                     >
                       Proposer cette option
                     </Button>
-                  )}
-                  {!isLocked && status === "voting" && !userVote && isSelected && (
-                    <Button
-                      size="sm"
-                      className="mt-2 w-full glow-primary"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        castVote(option.id)
-                      }}
-                      disabled={loading}
-                    >
-                      Voter pour cette option
-                    </Button>
-                  )}
-                </CardContent>
-              </Card>
-            )
-          })}
-        </div>
-      )}
-
-      {/* Pending message for non-responsible */}
-      {status === "pending" && !isResponsible && !isLocked && (
-        <Card className="border-dashed border-border/40 bg-card/40">
-          <CardContent className="flex flex-col items-center gap-3 p-8 text-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-muted/50">
-              <Clock className="h-6 w-6 text-muted-foreground/50" />
-            </div>
-            <p className="text-sm text-muted-foreground">
-              En attente de la proposition du <span className="font-semibold text-foreground">{COMPANY_ROLE_LABELS[responsibleRole]}</span>
-            </p>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Structured comments - visible during voting for all members */}
-      {(status === "voting" || status === "proposed") && !isLocked && (
-        <Card className="border-border/40 bg-card/80">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-bold">Argumentaire de l{"'"}equipe</CardTitle>
-            <p className="text-xs text-muted-foreground">Justifiez votre choix pour l{"'"}administrateur. Ces informations seront visibles lors de l{"'"}attribution des points.</p>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-success">Avantages de ce choix</Label>
-              <Textarea
-                placeholder="Quels sont les points positifs de cette decision ?"
-                value={commentAvantages}
-                onChange={(e) => setCommentAvantages(e.target.value)}
-                rows={2}
-                className="bg-secondary/50 border-border/40 text-sm"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-destructive">Inconvenients de ce choix</Label>
-              <Textarea
-                placeholder="Quels risques ou points negatifs voyez-vous ?"
-                value={commentInconvenients}
-                onChange={(e) => setCommentInconvenients(e.target.value)}
-                rows={2}
-                className="bg-secondary/50 border-border/40 text-sm"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-primary">{"Qu'est-ce qui justifie finalement cette decision ?"}</Label>
-              <Textarea
-                placeholder="Expliquez pourquoi cette option est la meilleure pour l'entreprise..."
-                value={commentJustification}
-                onChange={(e) => setCommentJustification(e.target.value)}
-                rows={2}
-                className="bg-secondary/50 border-border/40 text-sm"
-              />
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* DG Validation */}
-      {status === "voting" && isDG && votes.length > 0 && !isLocked && (
-        <Card className="border-warning/30 bg-warning/5">
-          <CardContent className="flex flex-col items-center gap-4 p-6 sm:flex-row sm:justify-between">
-            <div className="text-center sm:text-left">
-              <p className="text-sm font-bold text-foreground">Validation du Directeur General</p>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                {votes.length} vote(s) sur {teamMembers.length} membres
-              </p>
-            </div>
-            <Button onClick={validateDecision} disabled={loading} className="glow-primary">
-              <ShieldCheck className="mr-2 h-4 w-4" />
-              Valider la decision
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Vote List */}
-      {(status === "voting" || status === "validated") && votes.length > 0 && (
-        <Card className="border-border/40 bg-card/80">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-bold">Votes de l{"'"}equipe</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {votes.map((v: any) => (
-                <div key={v.id} className="flex items-center justify-between rounded-lg border border-border/30 bg-background/50 p-3">
-                  <div className="flex items-center gap-2.5">
-                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/15 text-[10px] font-bold text-primary">
-                      {v.profiles?.display_name?.[0]?.toUpperCase() || "?"}
-                    </div>
-                    <span className="text-sm font-medium text-foreground">{v.profiles?.display_name || "-"}</span>
                   </div>
-                  <Badge variant="outline" className="border-border/60 text-[10px] font-medium">
-                    {v.event_options?.label || "-"}
-                  </Badge>
+                )}
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="border-dashed border-border/40 bg-card/40">
+              <CardContent className="flex flex-col items-center gap-3 p-8 text-center">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-muted/50">
+                  <Clock className="h-6 w-6 text-muted-foreground/50" />
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+                <p className="text-sm text-muted-foreground">
+                  En attente de la proposition du <span className="font-semibold text-foreground">{COMPANY_ROLE_LABELS[specialistRole]}</span>
+                </p>
+                <p className="text-xs text-muted-foreground/60">Le specialiste analyse les options et redige son argumentaire...</p>
+              </CardContent>
+            </Card>
+          )}
+        </>
+      )}
+
+      {/* ===== STEP 2: VOTING PHASE ===== */}
+      {status === "voting" && (
+        <>
+          {/* Show the specialist proposal */}
+          <Card className="border-border/40 bg-card/80">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-bold flex items-center gap-2">
+                <User className="h-4 w-4 text-primary" />
+                Proposition du {COMPANY_ROLE_LABELS[specialistRole]}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {proposedOption && (
+                <div className="rounded-lg border border-primary/30 bg-primary/5 p-3">
+                  <p className="text-sm font-bold text-foreground">{proposedOption.label}</p>
+                  {proposedOption.description && <p className="mt-1 text-xs text-muted-foreground">{proposedOption.description}</p>}
+                </div>
+              )}
+              {/* Show specialist argumentaire */}
+              {(decision?.comment_avantages || decision?.comment_inconvenients || decision?.comment_justification) && (
+                <div className="space-y-2 rounded-lg border border-border/30 bg-muted/10 p-3">
+                  <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Argumentaire du specialiste</p>
+                  {decision.comment_avantages && (
+                    <div className="space-y-0.5">
+                      <p className="text-[10px] font-semibold text-success">Avantages</p>
+                      <p className="text-xs text-muted-foreground leading-relaxed">{decision.comment_avantages}</p>
+                    </div>
+                  )}
+                  {decision.comment_inconvenients && (
+                    <div className="space-y-0.5">
+                      <p className="text-[10px] font-semibold text-destructive">Inconvenients</p>
+                      <p className="text-xs text-muted-foreground leading-relaxed">{decision.comment_inconvenients}</p>
+                    </div>
+                  )}
+                  {decision.comment_justification && (
+                    <div className="space-y-0.5">
+                      <p className="text-[10px] font-semibold text-primary">Justification</p>
+                      <p className="text-xs text-muted-foreground leading-relaxed">{decision.comment_justification}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Vote status summary */}
+          <Card className="border-border/40 bg-card/80">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-bold">Votes de l{"'"}equipe</CardTitle>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-success border-success/30 text-[10px]">{approvals} pour</Badge>
+                  <Badge variant="outline" className="text-destructive border-destructive/30 text-[10px]">{rejections} contre</Badge>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {/* Progress bar */}
+              <div className="space-y-1">
+                <div className="flex justify-between text-[10px] text-muted-foreground">
+                  <span>{votes.length} vote(s)</span>
+                  <span>{nonDGNonSpecMembers.length} votant(s) attendu(s)</span>
+                </div>
+                <div className="h-2 rounded-full bg-muted/50 overflow-hidden">
+                  <div className="h-full bg-primary transition-all" style={{ width: `${nonDGNonSpecMembers.length > 0 ? (votes.length / nonDGNonSpecMembers.length) * 100 : 0}%` }} />
+                </div>
+              </div>
+
+              {/* Toggle vote details */}
+              {votes.length > 0 && (
+                <button
+                  onClick={() => setShowVoteDetails(!showVoteDetails)}
+                  className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {showVoteDetails ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                  {showVoteDetails ? "Masquer les details" : "Voir les details des votes"}
+                </button>
+              )}
+
+              {showVoteDetails && votes.map((v: any) => {
+                const info = getMemberInfo(v.user_id)
+                return (
+                  <div key={v.id} className="rounded-lg border border-border/20 bg-muted/10 p-3 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold">{info.name}</span>
+                        {info.role && <Badge variant="outline" className="text-[9px] border-border/30">{COMPANY_ROLE_LABELS[info.role]}</Badge>}
+                      </div>
+                      {v.approved === true
+                        ? <Badge className="bg-success/15 text-success text-[10px] border-success/30"><ThumbsUp className="h-2.5 w-2.5 mr-1" />Pour</Badge>
+                        : <Badge className="bg-destructive/15 text-destructive text-[10px] border-destructive/30"><ThumbsDown className="h-2.5 w-2.5 mr-1" />Contre</Badge>
+                      }
+                    </div>
+                    {v.comment && (
+                      <div className="flex items-start gap-1.5">
+                        <MessageSquare className="h-3 w-3 text-muted-foreground/50 mt-0.5 shrink-0" />
+                        <p className="text-xs text-muted-foreground italic">{v.comment}</p>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </CardContent>
+          </Card>
+
+          {/* Voter form (for non-specialist, non-DG members who haven't voted yet) */}
+          {!isDG && !isSpecialist && !userVote && !isLocked && (
+            <Card className="border-primary/30 bg-primary/5">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-bold">Votre avis en tant que {COMPANY_ROLE_LABELS[currentRole]}</CardTitle>
+                <CardDescription className="text-xs">
+                  Approuvez-vous cette proposition ? Redigez un commentaire en lien avec votre role dans l{"'"}entreprise.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex gap-3">
+                  <Button
+                    variant={voteApproved === true ? "default" : "outline"}
+                    className={`flex-1 ${voteApproved === true ? "bg-success hover:bg-success/90 text-success-foreground" : ""}`}
+                    onClick={() => setVoteApproved(true)}
+                  >
+                    <ThumbsUp className="mr-2 h-4 w-4" />
+                    Approuver
+                  </Button>
+                  <Button
+                    variant={voteApproved === false ? "default" : "outline"}
+                    className={`flex-1 ${voteApproved === false ? "bg-destructive hover:bg-destructive/90 text-destructive-foreground" : ""}`}
+                    onClick={() => setVoteApproved(false)}
+                  >
+                    <ThumbsDown className="mr-2 h-4 w-4" />
+                    {"S'opposer"}
+                  </Button>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-muted-foreground">
+                    Commentaire (du point de vue de votre role : {COMPANY_ROLE_LABELS[currentRole]})
+                  </Label>
+                  <Textarea
+                    placeholder={`En tant que ${COMPANY_ROLE_LABELS[currentRole]}, je pense que...`}
+                    value={voteComment}
+                    onChange={(e) => setVoteComment(e.target.value)}
+                    rows={3}
+                    className="bg-secondary/50 border-border/40 text-sm"
+                  />
+                </div>
+                <Button onClick={castVote} disabled={loading || voteApproved === null} className="w-full glow-primary">
+                  Soumettre mon vote
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Already voted confirmation */}
+          {!isDG && userVote && (
+            <Card className="border-success/30 bg-success/5">
+              <CardContent className="flex items-center gap-4 p-4">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-success/15">
+                  <CheckCircle className="h-5 w-5 text-success" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-foreground">Vote enregistre</p>
+                  <p className="text-xs text-muted-foreground">
+                    Vous avez {userVote.approved ? "approuve" : "rejete"} la proposition. En attente de la decision du DG.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Specialist waiting message */}
+          {isSpecialist && !isDG && (
+            <Card className="border-border/30 bg-card/40">
+              <CardContent className="flex items-center gap-4 p-4">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted/50">
+                  <Clock className="h-5 w-5 text-muted-foreground/50" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-foreground">Votre proposition a ete soumise</p>
+                  <p className="text-xs text-muted-foreground">{"L'equipe vote et le DG prendra la decision finale."}</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* ===== STEP 3: DG DECISION ===== */}
+          {isDG && !isLocked && (
+            <Card className="border-warning/30 bg-warning/5">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-bold flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4 text-warning" />
+                  Decision du Directeur General
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  {allVotersVoted
+                    ? "Tous les membres ont vote. Vous pouvez prendre votre decision."
+                    : `En attente des votes (${votes.length}/${nonDGNonSpecMembers.length}). Vous pouvez decider a tout moment.`
+                  }
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Toggle: collegial vs unilateral */}
+                <div className="flex gap-3">
+                  <Button
+                    variant={!dgOverride ? "default" : "outline"}
+                    className={`flex-1 text-xs ${!dgOverride ? "bg-success hover:bg-success/90 text-success-foreground" : ""}`}
+                    onClick={() => { setDgOverride(false); setDgOverrideOption(null) }}
+                  >
+                    <ThumbsUp className="mr-1.5 h-3.5 w-3.5" />
+                    Valider la proposition
+                  </Button>
+                  <Button
+                    variant={dgOverride ? "default" : "outline"}
+                    className={`flex-1 text-xs ${dgOverride ? "bg-warning hover:bg-warning/90 text-warning-foreground" : ""}`}
+                    onClick={() => setDgOverride(true)}
+                  >
+                    <ShieldCheck className="mr-1.5 h-3.5 w-3.5" />
+                    Decision unilaterale
+                  </Button>
+                </div>
+
+                {/* Override: select different option */}
+                {dgOverride && (
+                  <div className="space-y-2 rounded-lg border border-warning/30 bg-warning/5 p-3">
+                    <p className="text-xs font-semibold text-warning">Choisir une autre option :</p>
+                    <div className="grid gap-2 sm:grid-cols-3">
+                      {options.map((option: any) => (
+                        <div
+                          key={option.id}
+                          onClick={() => setDgOverrideOption(option.id)}
+                          className={`cursor-pointer rounded-lg border p-2.5 transition-all text-xs ${
+                            dgOverrideOption === option.id
+                              ? "border-warning/50 bg-warning/10 ring-1 ring-warning/30"
+                              : "border-border/40 bg-card/60 hover:border-warning/25"
+                          }`}
+                        >
+                          <p className="font-bold">{option.label}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* DG comment */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-muted-foreground">
+                    {dgOverride ? "Justification de la decision unilaterale" : "Commentaire de validation"}
+                  </Label>
+                  <Textarea
+                    placeholder={dgOverride
+                      ? "Expliquez pourquoi vous prenez une decision differente de la proposition de l'equipe..."
+                      : "Commentaire sur la validation de cette decision collegiale..."
+                    }
+                    value={dgComment}
+                    onChange={(e) => setDgComment(e.target.value)}
+                    rows={3}
+                    className="bg-secondary/50 border-border/40 text-sm"
+                  />
+                </div>
+
+                <Button
+                  onClick={dgValidate}
+                  disabled={loading || (dgOverride && !dgOverrideOption)}
+                  className="w-full glow-primary"
+                >
+                  <ShieldCheck className="mr-2 h-4 w-4" />
+                  {dgOverride ? "Imposer cette decision" : "Valider la decision collegiale"}
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+        </>
       )}
     </div>
   )
