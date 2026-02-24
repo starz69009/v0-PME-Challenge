@@ -25,11 +25,11 @@ export const COMPANY_ROLE_LABELS: Record<CompanyRole, string> = {
 }
 
 export const SCORE_FIELDS = [
-  { key: 'points_social', label: 'Social', color: '#38bdf8' },
-  { key: 'points_commercial', label: 'Commercial', color: '#34d399' },
-  { key: 'points_tresorerie', label: 'Tresorerie', color: '#fbbf24' },
-  { key: 'points_production', label: 'Production', color: '#c084fc' },
-  { key: 'points_reglementaire', label: 'Reglementaire', color: '#f87171' },
+  { key: 'points_social', label: 'Social', short: 'SOC', color: '#38bdf8' },
+  { key: 'points_commercial', label: 'Commercial', short: 'COM', color: '#34d399' },
+  { key: 'points_tresorerie', label: 'Tresorerie', short: 'TRE', color: '#fbbf24' },
+  { key: 'points_production', label: 'Production', short: 'PRO', color: '#c084fc' },
+  { key: 'points_reglementaire', label: 'Reglementaire', short: 'REG', color: '#f87171' },
 ] as const
 
 export const SESSION_STATUS_LABELS = {
