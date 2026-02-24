@@ -113,6 +113,9 @@ export interface Decision {
   dg_validated: boolean
   dg_validated_by: string | null
   dg_validated_at: string | null
+  comment_avantages: string | null
+  comment_inconvenients: string | null
+  comment_justification: string | null
   admin_comment: string | null
   created_at: string
   event_options?: EventOption

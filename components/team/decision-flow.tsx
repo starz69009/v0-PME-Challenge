@@ -7,8 +7,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { CategoryBadge } from "@/components/category-badge"
-import { CheckCircle, Vote, ShieldCheck, Clock, User, ThumbsUp, TrendingUp, TrendingDown, Minus, Timer, AlertTriangle } from "lucide-react"
-import { SCORE_FIELDS, COMPANY_ROLE_LABELS, DECISION_STATUS_LABELS } from "@/lib/constants"
+import { Textarea } from "@/components/ui/textarea"
+import { Label } from "@/components/ui/label"
+import { CheckCircle, Vote, ShieldCheck, Clock, User, ThumbsUp, Timer, AlertTriangle } from "lucide-react"
+import { COMPANY_ROLE_LABELS, DECISION_STATUS_LABELS } from "@/lib/constants"
 import { toast } from "sonner"
 import type { CompanyRole, DecisionStatus, EventCategory } from "@/lib/types"
 
@@ -104,6 +106,9 @@ export function DecisionFlow({
   const [votes, setVotes] = useState(initialVotes)
   const [loading, setLoading] = useState(false)
   const [selectedOption, setSelectedOption] = useState<string | null>(null)
+  const [commentAvantages, setCommentAvantages] = useState(initialDecision?.comment_avantages || "")
+  const [commentInconvenients, setCommentInconvenients] = useState(initialDecision?.comment_inconvenients || "")
+  const [commentJustification, setCommentJustification] = useState(initialDecision?.comment_justification || "")
   const [expired, setExpired] = useState(() => {
     if (!expiresAt) return false
     return new Date(expiresAt).getTime() <= Date.now()
@@ -214,6 +219,9 @@ export function DecisionFlow({
         dg_validated: true,
         dg_validated_by: currentUserId,
         dg_validated_at: new Date().toISOString(),
+        comment_avantages: commentAvantages || null,
+        comment_inconvenients: commentInconvenients || null,
+        comment_justification: commentJustification || null,
       })
       .eq("id", decision.id)
 
@@ -361,31 +369,6 @@ export function DecisionFlow({
                   )}
                 </CardHeader>
                 <CardContent className="pt-0">
-                  {/* Impact Preview */}
-                  <div className="mb-3 space-y-1.5 rounded-lg border border-border/30 bg-background/50 p-2.5">
-                    {SCORE_FIELDS.map((f) => {
-                      const val = option[f.key]
-                      if (val === 0) return null
-                      return (
-                        <div key={f.key} className="flex items-center justify-between text-xs">
-                          <span className="text-muted-foreground">{f.label}</span>
-                          <span className={`flex items-center gap-1 font-mono font-semibold ${
-                            val > 0 ? "text-success" : "text-destructive"
-                          }`}>
-                            {val > 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                            {val > 0 ? "+" : ""}{val}
-                          </span>
-                        </div>
-                      )
-                    })}
-                    {SCORE_FIELDS.every(f => option[f.key] === 0) && (
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <Minus className="h-3 w-3" />
-                        Aucun impact
-                      </div>
-                    )}
-                  </div>
-
                   {/* Vote count during voting */}
                   {status === "voting" && (
                     <div className="mb-2 overflow-hidden rounded-lg bg-muted/30">
@@ -455,6 +438,48 @@ export function DecisionFlow({
             <p className="text-sm text-muted-foreground">
               En attente de la proposition du <span className="font-semibold text-foreground">{COMPANY_ROLE_LABELS[responsibleRole]}</span>
             </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Structured comments - visible during voting for all members */}
+      {(status === "voting" || status === "proposed") && !isLocked && (
+        <Card className="border-border/40 bg-card/80">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-bold">Argumentaire de l{"'"}equipe</CardTitle>
+            <p className="text-xs text-muted-foreground">Justifiez votre choix pour l{"'"}administrateur. Ces informations seront visibles lors de l{"'"}attribution des points.</p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-success">Avantages de ce choix</Label>
+              <Textarea
+                placeholder="Quels sont les points positifs de cette decision ?"
+                value={commentAvantages}
+                onChange={(e) => setCommentAvantages(e.target.value)}
+                rows={2}
+                className="bg-secondary/50 border-border/40 text-sm"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-destructive">Inconvenients de ce choix</Label>
+              <Textarea
+                placeholder="Quels risques ou points negatifs voyez-vous ?"
+                value={commentInconvenients}
+                onChange={(e) => setCommentInconvenients(e.target.value)}
+                rows={2}
+                className="bg-secondary/50 border-border/40 text-sm"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-primary">{"Qu'est-ce qui justifie finalement cette decision ?"}</Label>
+              <Textarea
+                placeholder="Expliquez pourquoi cette option est la meilleure pour l'entreprise..."
+                value={commentJustification}
+                onChange={(e) => setCommentJustification(e.target.value)}
+                rows={2}
+                className="bg-secondary/50 border-border/40 text-sm"
+              />
+            </div>
           </CardContent>
         </Card>
       )}

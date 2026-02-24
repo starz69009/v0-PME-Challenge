@@ -599,6 +599,21 @@ export function SessionsManager({
                                             )}
                                           </div>
 
+                                          {/* Team argumentaire */}
+                                          {(decision.comment_avantages || decision.comment_inconvenients || decision.comment_justification) && (
+                                            <div className="mt-2 space-y-1 rounded-md border border-border/20 bg-muted/10 p-2">
+                                              {decision.comment_avantages && (
+                                                <p className="text-[10px] text-muted-foreground"><span className="font-semibold text-success">+</span> {decision.comment_avantages}</p>
+                                              )}
+                                              {decision.comment_inconvenients && (
+                                                <p className="text-[10px] text-muted-foreground"><span className="font-semibold text-destructive">-</span> {decision.comment_inconvenients}</p>
+                                              )}
+                                              {decision.comment_justification && (
+                                                <p className="text-[10px] text-muted-foreground"><span className="font-semibold text-primary">?</span> {decision.comment_justification}</p>
+                                              )}
+                                            </div>
+                                          )}
+
                                           {/* Show scores if attributed */}
                                           {score && (
                                             <div className="mt-1.5 flex items-center gap-1.5">
@@ -793,6 +808,31 @@ export function SessionsManager({
                     {/* Option description if available */}
                     {chosenOption?.description && (
                       <p className="text-xs text-muted-foreground bg-muted/20 rounded-md px-3 py-2">{chosenOption.description}</p>
+                    )}
+
+                    {/* Structured comments from the team */}
+                    {(decision.comment_avantages || decision.comment_inconvenients || decision.comment_justification) && (
+                      <div className="space-y-2 rounded-lg border border-border/30 bg-muted/10 p-3">
+                        <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Argumentaire de l{"'"}equipe</p>
+                        {decision.comment_avantages && (
+                          <div className="space-y-0.5">
+                            <p className="text-[10px] font-semibold text-success">Avantages</p>
+                            <p className="text-xs text-muted-foreground leading-relaxed">{decision.comment_avantages}</p>
+                          </div>
+                        )}
+                        {decision.comment_inconvenients && (
+                          <div className="space-y-0.5">
+                            <p className="text-[10px] font-semibold text-destructive">Inconvenients</p>
+                            <p className="text-xs text-muted-foreground leading-relaxed">{decision.comment_inconvenients}</p>
+                          </div>
+                        )}
+                        {decision.comment_justification && (
+                          <div className="space-y-0.5">
+                            <p className="text-[10px] font-semibold text-primary">Justification</p>
+                            <p className="text-xs text-muted-foreground leading-relaxed">{decision.comment_justification}</p>
+                          </div>
+                        )}
+                      </div>
                     )}
 
                     {/* Score fields */}
